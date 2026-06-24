@@ -460,6 +460,7 @@ async function autoCheckIfComplete() {
   if (!results) return;
   if (results.every((r) => r.correct)) {
     state.completed = true;
+    clearInterval(timerInterval);
     const totalWhite = rows * cols - state.blocks.size;
     const wrongCount = Object.values(state.checked).filter(v => v === "wrong").length;
     const pct = Math.round((totalWhite - wrongCount) / totalWhite * 100);
@@ -540,6 +541,26 @@ document.addEventListener("keydown", (e) => {
     svg.focus();
   }
 });
+
+// --- Timer ---
+let timerSeconds = 0;
+const timerEl = document.getElementById("timer");
+document.getElementById("timer-toggle").addEventListener("click", () => {
+  const hidden = !timerEl.hidden;
+  timerEl.hidden = hidden;
+  document.getElementById("timer-toggle").textContent = hidden ? "Show" : "Hide";
+});
+
+const timerInterval = setInterval(() => {
+  timerSeconds++;
+  const h = Math.floor(timerSeconds / 3600);
+  const m = Math.floor((timerSeconds % 3600) / 60);
+  const s = timerSeconds % 60;
+  timerEl.textContent = "Time taken: " +
+    String(h).padStart(2, "0") + ":" +
+    String(m).padStart(2, "0") + ":" +
+    String(s).padStart(2, "0");
+}, 1000);
 
 const _initSlots = computeSlots();
 const _firstAcross = _initSlots.find((s) => s.direction === ACROSS);

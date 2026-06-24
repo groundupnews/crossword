@@ -25,6 +25,10 @@
           <li data-mode="crossword">Crossword</li>
         </ul>
       </div>
+      <span class="timer-wrap">
+        <span id="timer">Time taken: 00:00:00</span>
+        <button id="timer-toggle" type="button">Hide</button>
+      </span>
       {% if perms.crossword.can_generate_crosswords %}
       <a href="{% url 'crossword_edit' crossword.pk %}" class="btn-icon" title="Edit crossword">✏</a>
       {% endif %}
@@ -106,5 +110,5 @@
     csrfToken: "{{ csrf_token }}",
   };
 </script>
-<script src="{% static 'crossword/solver.js' %}?v=13"></script>
+<script src="{% static 'crossword/solver.js' %}?v=17"></script>
 {% endblock %}
