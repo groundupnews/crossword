@@ -122,6 +122,49 @@ def crossword_check(request, pk):
     return JsonResponse({"results": results})
 
 
+@require_POST
+def crossword_reveal(request, pk):
+    """Return correct letters for the requested cells.
+
+    Accepts JSON: mode ('letter'|'word'|'crossword'), cursor, direction.
+    Returns per-cell correct letters; the client is responsible for marking
+    revealed cells as incorrect for scoring purposes.
+    """
+    crossword = get_object_or_404(Crossword, pk=pk)
+    if not crossword.is_published() and not request.user.has_perm(PERM):
+        raise Http404
+
+    payload = json.loads(request.body)
+    mode = payload.get("mode")
+    cursor = payload.get("cursor", 0)
+    direction = payload.get("direction", Entry.ACROSS)
+
+    answer = crossword.cells
+    blocked = set(crossword.blocked_out_squares)
+
+    def reveal_cell(i):
+        return {"index": i, "letter": answer[i]}
+
+    if mode == "letter":
+        results = [] if cursor in blocked else [reveal_cell(cursor)]
+    elif mode == "word":
+        all_slots = grid.slots(
+            crossword.num_rows, crossword.num_cols,
+            crossword.blocked_out_squares, answer,
+        )
+        slot = next(
+            (s for s in all_slots if s.direction == direction and cursor in s.indices),
+            None,
+        )
+        results = [reveal_cell(i) for i in slot.indices] if slot else []
+    elif mode == "crossword":
+        results = [reveal_cell(i) for i in range(len(answer)) if i not in blocked]
+    else:
+        return JsonResponse({"error": "invalid mode"}, status=400)
+
+    return JsonResponse({"results": results})
+
+
 def crossword_solve(request, pk):
     """Detail/solver view.
 

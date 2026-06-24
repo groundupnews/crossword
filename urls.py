@@ -7,6 +7,7 @@ urlpatterns = [
     path("", views.CrosswordSelectView.as_view(), name="crossword_select"),
     path("<int:pk>/solve/", views.crossword_solve, name="crossword_solve"),
     path("<int:pk>/check/", views.crossword_check, name="crossword_check"),
+    path("<int:pk>/reveal/", views.crossword_reveal, name="crossword_reveal"),
     path("<int:pk>/edit/", views.crossword_edit, name="crossword_edit"),
     path("<int:pk>/save/", views.crossword_save, name="crossword_save"),
     path("<int:pk>/fetch-answers/", views.fetch_answers, name="fetch_answers"),

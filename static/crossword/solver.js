@@ -485,8 +485,51 @@ checkMenu.addEventListener("click", (e) => {
   svg.focus();
 });
 
+// --- Reveal feature ---
+async function doReveal(mode) {
+  const labels = { letter: "this letter", word: "this word", crossword: "the entire crossword" };
+  if (!confirm(`Reveal ${labels[mode]}?`)) return;
+  try {
+    const resp = await fetch(CW.revealUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": CW.csrfToken },
+      body: JSON.stringify({ mode, cursor: state.cursor, direction: state.direction }),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    for (const { index, letter } of data.results) {
+      if (!letter) continue;
+      if (state.cells[index] !== letter) {
+        // blank or wrong — count against score
+        state.checked[index] = "wrong";
+        state.cells[index] = letter;
+      }
+      delete state.indicators[index];
+    }
+    render();
+    autoCheckIfComplete();
+  } catch (_) {}
+}
+
+const revealBtn = document.getElementById("reveal-btn");
+const revealMenu = document.getElementById("reveal-menu");
+
+revealBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  revealMenu.hidden = !revealMenu.hidden;
+});
+
+revealMenu.addEventListener("click", (e) => {
+  const li = e.target.closest("li[data-mode]");
+  if (!li) return;
+  revealMenu.hidden = true;
+  doReveal(li.dataset.mode);
+  svg.focus();
+});
+
 document.addEventListener("click", () => {
   checkMenu.hidden = true;
+  revealMenu.hidden = true;
 });
 
 document.addEventListener("keydown", (e) => {

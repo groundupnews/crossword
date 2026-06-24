@@ -17,6 +17,14 @@
           <li data-mode="crossword">Crossword</li>
         </ul>
       </div>
+      <div class="check-dropdown">
+        <button id="reveal-btn" type="button">👁 Reveal</button>
+        <ul class="check-menu" id="reveal-menu" hidden>
+          <li data-mode="letter">Letter</li>
+          <li data-mode="word">Word</li>
+          <li data-mode="crossword">Crossword</li>
+        </ul>
+      </div>
       {% if perms.crossword.can_generate_crosswords %}
       <a href="{% url 'crossword_edit' crossword.pk %}" class="btn-icon" title="Edit crossword">✏</a>
       {% endif %}
@@ -94,8 +102,9 @@
     blocks: JSON.parse(document.getElementById("cw-blocks").textContent),
     clues: JSON.parse(document.getElementById("cw-clues").textContent),
     checkUrl: "{% url 'crossword_check' crossword.pk %}",
+    revealUrl: "{% url 'crossword_reveal' crossword.pk %}",
     csrfToken: "{{ csrf_token }}",
   };
 </script>
-<script src="{% static 'crossword/solver.js' %}?v=12"></script>
+<script src="{% static 'crossword/solver.js' %}?v=13"></script>
 {% endblock %}
