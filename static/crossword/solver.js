@@ -256,12 +256,11 @@ svg.addEventListener("click", (e) => {
   setCursor(i);
 });
 
-svg.addEventListener("keydown", (e) => {
-  if (state.completed) return;
+function handleKey(key, shiftKey = false) {
+  if (state.completed) return false;
   const r = rowOf(state.cursor);
   const c = colOf(state.cursor);
-  if (e.key === " ") {
-    e.preventDefault();
+  if (key === " ") {
     if (!state.blocks.has(state.cursor)) {
       state.cells[state.cursor] = "";
       delete state.indicators[state.cursor];
@@ -269,30 +268,35 @@ svg.addEventListener("keydown", (e) => {
       advance();
       render();
     }
-  } else if (e.key === "Backspace") {
-    e.preventDefault();
-    if (state.blocks.has(state.cursor)) return;
-    if (state.cells[state.cursor]) {
-      state.cells[state.cursor] = "";
-      delete state.indicators[state.cursor];
-      clearMessage();
-    } else {
-      retreat();
+    return true;
+  }
+  if (key === "Backspace") {
+    if (!state.blocks.has(state.cursor)) {
+      if (state.cells[state.cursor]) {
+        state.cells[state.cursor] = "";
+        delete state.indicators[state.cursor];
+        clearMessage();
+      } else {
+        retreat();
+      }
+      render();
     }
-    render();
-  } else if (e.key === "Delete") {
-    e.preventDefault();
-    if (state.blocks.has(state.cursor)) return;
-    if (state.cells[state.cursor]) {
-      state.cells[state.cursor] = "";
-      delete state.indicators[state.cursor];
-      clearMessage();
-    } else {
-      advance();
+    return true;
+  }
+  if (key === "Delete") {
+    if (!state.blocks.has(state.cursor)) {
+      if (state.cells[state.cursor]) {
+        state.cells[state.cursor] = "";
+        delete state.indicators[state.cursor];
+        clearMessage();
+      } else {
+        advance();
+      }
+      render();
     }
-    render();
-  } else if (e.key === "ArrowLeft") {
-    e.preventDefault();
+    return true;
+  }
+  if (key === "ArrowLeft") {
     let nc = c - 1;
     while (nc >= 0 && !isWhite(r, nc)) nc--;
     if (nc >= 0) {
@@ -305,8 +309,9 @@ svg.addEventListener("keydown", (e) => {
         if (lc >= 0) { setCursor(idx(nr, lc)); break; }
       }
     }
-  } else if (e.key === "ArrowRight") {
-    e.preventDefault();
+    return true;
+  }
+  if (key === "ArrowRight") {
     let nc = c + 1;
     while (nc < cols && !isWhite(r, nc)) nc++;
     if (nc < cols) {
@@ -319,8 +324,9 @@ svg.addEventListener("keydown", (e) => {
         if (fc < cols) { setCursor(idx(nr, fc)); break; }
       }
     }
-  } else if (e.key === "ArrowUp") {
-    e.preventDefault();
+    return true;
+  }
+  if (key === "ArrowUp") {
     let nr = r - 1;
     while (nr >= 0 && !isWhite(nr, c)) nr--;
     if (nr >= 0) {
@@ -333,8 +339,9 @@ svg.addEventListener("keydown", (e) => {
         if (lr >= 0) { setCursor(idx(lr, nc)); break; }
       }
     }
-  } else if (e.key === "ArrowDown") {
-    e.preventDefault();
+    return true;
+  }
+  if (key === "ArrowDown") {
     let nr = r + 1;
     while (nr < rows && !isWhite(nr, c)) nr++;
     if (nr < rows) {
@@ -347,32 +354,45 @@ svg.addEventListener("keydown", (e) => {
         if (fr < rows) { setCursor(idx(fr, nc)); break; }
       }
     }
-  } else if (e.key === ".") {
-    e.preventDefault();
+    return true;
+  }
+  if (key === ".") {
     if (!state.blocks.has(state.cursor)) {
       state.direction = state.direction === ACROSS ? DOWN : ACROSS;
       render();
     }
-  } else if (e.key === "Tab") {
-    e.preventDefault();
+    return true;
+  }
+  if (key === "Tab") {
     const slots = computeSlots();
-    const result = nextSlot(!e.shiftKey, slots);
+    const result = nextSlot(!shiftKey, slots);
     if (result) {
       state.cursor = result.slot.start;
       state.direction = result.direction;
       render();
     }
-  } else if (/^[a-zA-Z]$/.test(e.key)) {
-    e.preventDefault();
+    return true;
+  }
+  if (/^[a-zA-Z]$/.test(key)) {
     if (!state.blocks.has(state.cursor)) {
-      state.cells[state.cursor] = e.key.toUpperCase();
+      state.cells[state.cursor] = key.toUpperCase();
       delete state.indicators[state.cursor];
       clearMessage();
       advance();
       render();
       autoCheckIfComplete();
     }
+    return true;
   }
+  return false;
+}
+
+svg.addEventListener("keydown", (e) => {
+  if (handleKey(e.key, e.shiftKey)) e.preventDefault();
+});
+
+document.querySelectorAll(".kb-key").forEach((btn) => {
+  btn.addEventListener("click", () => handleKey(btn.dataset.key));
 });
 
 // --- Check feature ---

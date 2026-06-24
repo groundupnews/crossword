@@ -241,7 +241,7 @@ button:focus-visible {
 
 #grid {
   width: 32rem;
-  height: 32rem;
+  height: auto;
   max-width: 100%;
   border: 2px solid var(--ink);
   border-radius: 4px;
@@ -526,6 +526,69 @@ kbd {
 
 .clue-list li.no-clue {
   color: var(--faint);
+}
+
+/* Mobile keyboard */
+.mobile-keyboard {
+  display: none;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.75rem;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.kb-row {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+.kb-key {
+  flex: 1;
+  max-width: 2.4rem;
+  padding: 0.65rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.kb-key:active {
+  background: var(--surface-sunken);
+  box-shadow: none;
+  transform: translateY(1px);
+}
+
+.kb-backspace {
+  max-width: 4rem;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 0.75rem;
+  }
+
+  .editor {
+    flex-direction: column;
+  }
+
+  .clue-list {
+    max-height: none;
+  }
+
+  .key-legend {
+    display: none;
+  }
+
+  .mobile-keyboard {
+    display: flex;
+  }
 }
 
 .modal-overlay {
