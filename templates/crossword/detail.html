@@ -1,0 +1,66 @@
+{% extends "crossword/base.html" %}
+{% load static %}
+
+{% block title %}{{ crossword.name|default:"Crossword" }}{% endblock %}
+
+{% block content %}
+<h1>{{ crossword.name|default:"Untitled crossword" }}</h1>
+
+<div class="editor">
+  <div class="grid-pane">
+    <div class="buttons">
+      <div class="check-dropdown">
+        <button id="check-btn" type="button">✓ Check</button>
+        <ul class="check-menu" id="check-menu" hidden>
+          <li data-mode="letter">Letter</li>
+          <li data-mode="word">Word</li>
+          <li data-mode="crossword">Crossword</li>
+        </ul>
+      </div>
+      {% if perms.crossword.can_generate_crosswords %}
+      <a href="{% url 'crossword_edit' crossword.pk %}" class="btn-icon" title="Edit crossword">✏</a>
+      {% endif %}
+    </div>
+    <svg id="grid" tabindex="0"
+         viewBox="0 0 {{ crossword.num_cols }} {{ crossword.num_rows }}"></svg>
+    <div class="clue-display">
+      <strong id="current-slot">—</strong> <span id="clue-text"></span>
+    </div>
+    <div id="completion-message" hidden></div>
+    <dl class="key-legend">
+      <dt><kbd>A–Z</kbd></dt><dd>Type letter</dd>
+      <dt><kbd>Backspace</kbd></dt><dd>Delete / retreat</dd>
+      <dt><kbd>Delete</kbd></dt><dd>Delete / advance</dd>
+      <dt><kbd>Space</kbd></dt><dd>Delete / advance</dd>
+      <dt><kbd>.</kbd></dt><dd>Toggle direction</dd>
+      <dt><kbd>Home</kbd> / <kbd>End</kbd></dt><dd>First / last cell</dd>
+      <dt><kbd>Tab</kbd> / <kbd>Shift+Tab</kbd></dt><dd>Next / prev slot</dd>
+    </dl>
+  </div>
+
+  <aside class="clue-list">
+    <div>
+      <h2>Across</h2>
+      <ol id="clue-list-across"></ol>
+    </div>
+    <div>
+      <h2>Down</h2>
+      <ol id="clue-list-down"></ol>
+    </div>
+  </aside>
+</div>
+
+{{ crossword.blocked_out_squares|json_script:"cw-blocks" }}
+{{ clues|json_script:"cw-clues" }}
+<script>
+  window.CROSSWORD = {
+    numRows: {{ crossword.num_rows }},
+    numCols: {{ crossword.num_cols }},
+    blocks: JSON.parse(document.getElementById("cw-blocks").textContent),
+    clues: JSON.parse(document.getElementById("cw-clues").textContent),
+    checkUrl: "{% url 'crossword_check' crossword.pk %}",
+    csrfToken: "{{ csrf_token }}",
+  };
+</script>
+<script src="{% static 'crossword/solver.js' %}?v=10"></script>
+{% endblock %}
