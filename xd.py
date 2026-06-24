@@ -1,5 +1,6 @@
 """xd crossword format: parse and render."""
 import re
+from datetime import datetime, timezone
 
 from django.db import transaction
 
@@ -61,6 +62,7 @@ def parse_xd(content):
         "authors": headers.get("author", ""),
         "editors": headers.get("editor", ""),
         "copyright": headers.get("copyright", ""),
+        "date": headers.get("date", ""),
         "size": {"rows": num_rows, "cols": num_cols},
         "grid": cells,
         "blocked_out_squares": blocked,
@@ -137,6 +139,8 @@ def save_crossword_from_xd(data, replace=False):
     )
     if data["copyright"]:
         create_kwargs["copyright"] = data["copyright"]
+    if data.get("date"):
+        create_kwargs["published"] = datetime.strptime(data["date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
     with transaction.atomic():
         if replace and data["name"]:
