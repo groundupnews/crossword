@@ -239,6 +239,24 @@ button:focus-visible {
   flex-shrink: 0;
 }
 
+.grid-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+#completion-indicator {
+  position: absolute;
+  top: -1.4rem;
+  right: 0;
+  font-size: 1rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+#completion-indicator.pending { color: var(--danger); }
+#completion-indicator.done    { color: #2a7a3b; }
+
 #grid {
   width: 32rem;
   height: auto;

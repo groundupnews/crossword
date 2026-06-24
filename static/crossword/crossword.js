@@ -142,6 +142,7 @@ function render() {
   }
   updateClueEntry(active);
   updateWarning(slots);
+  updateCompletionIndicator(slots);
   renderClueList(slots);
 }
 
@@ -173,6 +174,7 @@ document.getElementById("clue-input").addEventListener("input", (e) => {
   else delete state.clues[key];
   markDirty();
   renderClueList(slots); // refresh list only; don't rebuild grid (keeps focus)
+  updateCompletionIndicator(slots);
 });
 
 // --- Live Across/Down clue list ---
@@ -199,6 +201,16 @@ function renderClueList(slots) {
     });
     (s.direction === ACROSS ? across : down).appendChild(li);
   }
+}
+
+// --- Completion indicator ---
+function updateCompletionIndicator(slots) {
+  const el = document.getElementById("completion-indicator");
+  const allComplete = slots.length > 0 && slots.every(s => s.indices.every(i => state.cells[i]));
+  const allHaveClues = allComplete && slots.every(s => state.clues[slotKey(s)]);
+  const done = allComplete && allHaveClues;
+  el.textContent = done ? "✓" : "✗";
+  el.className = done ? "done" : "pending";
 }
 
 // --- Repeat-answer warning (non-blocking) ---

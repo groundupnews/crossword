@@ -28,8 +28,11 @@
 
 <div class="editor">
   <div class="grid-pane">
-    <svg id="grid" tabindex="0"
-         viewBox="0 0 {{ crossword.num_cols }} {{ crossword.num_rows }}"></svg>
+    <div class="grid-wrap">
+      <span id="completion-indicator"></span>
+      <svg id="grid" tabindex="0"
+           viewBox="0 0 {{ crossword.num_cols }} {{ crossword.num_rows }}"></svg>
+    </div>
     <p id="warning" class="warning" hidden></p>
     <div class="clue-entry">
       <label>Clue for <span id="current-slot">—</span>
@@ -100,5 +103,5 @@
     </div>
   </div>
 </div>
-<script src="{% static 'crossword/crossword.js' %}?v=14"></script>
+<script src="{% static 'crossword/crossword.js' %}?v=16"></script>
 {% endblock %}
