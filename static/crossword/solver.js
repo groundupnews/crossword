@@ -277,7 +277,16 @@ function handleKey(key, shiftKey = false) {
         delete state.indicators[state.cursor];
         clearMessage();
       } else {
+        const prev = state.cursor;
         retreat();
+        if (state.cursor === prev) {
+          const slots = computeSlots();
+          const result = nextSlot(false, slots);
+          if (result) {
+            state.direction = result.direction;
+            state.cursor = result.slot.indices[result.slot.indices.length - 1];
+          }
+        }
       }
       render();
     }
