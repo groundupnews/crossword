@@ -676,6 +676,45 @@ kbd {
   justify-content: flex-end;
 }
 
+/* Django messages (used by allauth for feedback across redirects) */
+.messages {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+}
+
+.message {
+  padding: 0.5rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid transparent;
+}
+
+.message.error {
+  background: #f8d7da;
+  border-color: #f1b0b7;
+  color: #7a1a22;
+}
+
+.message.success {
+  background: #d4edda;
+  border-color: #b8dfc5;
+  color: #1a5c2e;
+}
+
+.message.warning {
+  background: #fff3cd;
+  border-color: #ffeaa0;
+  color: #664d03;
+}
+
+.message.info {
+  background: #dde9ff;
+  border-color: #b3ccff;
+  color: #003580;
+}
+
 /* Auth pages (login, signup, logout) */
 .auth-box {
   max-width: 22rem;
@@ -728,6 +767,7 @@ kbd {
 
 .field-error {
   color: var(--danger);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 600;
   margin: -0.5rem 0 0;
 }
