@@ -83,6 +83,12 @@
       <dt><kbd>Home</kbd> / <kbd>End</kbd></dt><dd>First / last cell</dd>
       <dt><kbd>Tab</kbd> / <kbd>Shift+Tab</kbd></dt><dd>Next / prev slot</dd>
     </dl>
+    <p class="cw-meta">{% spaceless %}
+      {% if crossword.authors %}By {{ crossword.authors }}.{% endif %}
+      {% if crossword.editors %} Edited by {{ crossword.editors }}.{% endif %}
+      {% if crossword.copyright %} {{ crossword.copyright }}.{% endif %}
+      {% if crossword.published %} Published {{ crossword.published|date:"j F Y" }}.{% endif %}
+    {% endspaceless %}</p>
   </div>
 
   <aside class="clue-list">

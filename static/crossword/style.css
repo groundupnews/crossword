@@ -765,6 +765,13 @@ kbd {
   border-color: #0058b0;
 }
 
+.cw-meta {
+  font-size: 0.8rem;
+  color: var(--faint);
+  margin-top: 0.85rem;
+  max-width: 32rem;
+}
+
 .auth-small-link {
   font-size: 0.85rem;
   color: var(--muted);
