@@ -675,3 +675,59 @@ kbd {
   gap: 0.5rem;
   justify-content: flex-end;
 }
+
+/* Auth pages (login, signup, logout) */
+.auth-box {
+  max-width: 22rem;
+  margin: 3rem auto;
+}
+
+.auth-box h1 {
+  margin-bottom: 0.25rem;
+}
+
+.auth-box p {
+  color: var(--muted);
+  margin: 0 0 1.5rem;
+  font-size: 0.9rem;
+}
+
+.auth-box form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.auth-box label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.auth-box label input {
+  display: block;
+  width: 100%;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.auth-box button[type="submit"] {
+  align-self: flex-start;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  margin-top: 0.25rem;
+}
+
+.auth-box button[type="submit"]:hover {
+  background: #0058b0;
+  border-color: #0058b0;
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin: -0.5rem 0 0;
+}
