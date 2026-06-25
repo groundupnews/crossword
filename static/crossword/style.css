@@ -765,6 +765,12 @@ kbd {
   border-color: #0058b0;
 }
 
+.auth-small-link {
+  font-size: 0.85rem;
+  color: var(--muted);
+  align-self: flex-start;
+}
+
 .field-error {
   color: var(--danger);
   font-size: 0.9rem;
