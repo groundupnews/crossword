@@ -1,21 +1,10 @@
+{% extends "base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Crossword maker{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'crossword/style.css' %}?v=27">
-{% block head %}{% endblock %}
-</head>
-<body>
-  <header>
+{% block title %}Crossword maker{% endblock %}
+{% block header %}
+    {{ block.super }}
+    <div>
     <a href="{% url 'crossword_select' %}">Crosswords</a>
     <a href="{% url 'crossword_add' %}">New crossword</a>
-  </header>
-  <main>
-    {% block content %}{% endblock %}
-  </main>
-  {% block scripts %}{% endblock %}
-</body>
-</html>
+    </div>
+{% endblock %}
