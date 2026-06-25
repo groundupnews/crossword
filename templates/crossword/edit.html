@@ -18,6 +18,7 @@
     <input type="datetime-local" id="cw-published"
            value="{{ crossword.published|date:'Y-m-d\TH:i'|default:'' }}">
     <span id="publish-status"></span>
+    <button type="button" id="publish-btn"></button>
   </label>
   <small class="dates">
     Added {{ crossword.date_added|date:"Y-m-d H:i" }},
@@ -103,5 +104,5 @@
     </div>
   </div>
 </div>
-<script src="{% static 'crossword/crossword.js' %}?v=16"></script>
+<script src="{% static 'crossword/crossword.js' %}?v=17"></script>
 {% endblock %}

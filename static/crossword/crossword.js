@@ -358,10 +358,26 @@ svg.addEventListener("keydown", (e) => {
 function updatePublishStatus() {
   const val = document.getElementById("cw-published").value;
   const span = document.getElementById("publish-status");
+  const btn = document.getElementById("publish-btn");
   const isPublished = val && new Date(val) <= new Date();
   span.textContent = isPublished ? "Published" : "Unpublished";
   span.className = isPublished ? "status-published" : "status-unpublished";
+  btn.textContent = isPublished ? "Unpublish" : "Publish";
 }
+
+function nowLocalISO() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+document.getElementById("publish-btn").addEventListener("click", () => {
+  const input = document.getElementById("cw-published");
+  const isPublished = input.value && new Date(input.value) <= new Date();
+  input.value = isPublished ? "" : nowLocalISO();
+  markDirty();
+  updatePublishStatus();
+});
 
 // --- Save / JSON ---
 document.getElementById("save-btn").addEventListener("click", async () => {

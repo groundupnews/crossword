@@ -192,6 +192,19 @@ button:focus-visible {
   border-color: #0058b0;
 }
 
+#publish-btn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  margin-left: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+#publish-btn:hover {
+  background: #0058b0;
+  border-color: #0058b0;
+}
+
 #delete-btn {
   background: var(--danger);
   border-color: var(--danger);
