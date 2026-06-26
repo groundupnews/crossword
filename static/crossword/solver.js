@@ -454,6 +454,27 @@ function clearMessage() {
   msgEl.hidden = true;
 }
 
+function playTada() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const notes = [
+    { freq: 523.25, start: 0,    dur: 0.15 },  // C5
+    { freq: 659.25, start: 0.12, dur: 0.15 },  // E5
+    { freq: 783.99, start: 0.24, dur: 0.55 },  // G5
+  ];
+  for (const { freq, start, dur } of notes) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "triangle";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.28, ctx.currentTime + start);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+    osc.start(ctx.currentTime + start);
+    osc.stop(ctx.currentTime + start + dur);
+  }
+}
+
 async function autoCheckIfComplete() {
   if (!isComplete()) return;
   const results = await doCheck("crossword", false);
@@ -461,10 +482,13 @@ async function autoCheckIfComplete() {
   if (results.every((r) => r.correct)) {
     state.completed = true;
     clearInterval(timerInterval);
+    playTada();
+    document.getElementById("check-btn").closest(".check-dropdown").style.display = "none";
+    document.getElementById("reveal-btn").closest(".check-dropdown").style.display = "none";
     const totalWhite = rows * cols - state.blocks.size;
     const wrongCount = Object.values(state.checked).filter(v => v === "wrong").length;
     const pct = Math.round((totalWhite - wrongCount) / totalWhite * 100);
-    showMessage(`You got ${pct}% of the crossword correct.`, "success");
+    showMessage(`Crossword completed. You scored ${pct}%.`, "success");
   } else {
     showMessage("The crossword has some wrong answers.", "error");
   }
