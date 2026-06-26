@@ -523,6 +523,7 @@ async function autoCheckIfComplete() {
     playTada();
     document.getElementById("check-btn").closest(".check-dropdown").style.display = "none";
     document.getElementById("reveal-btn").closest(".check-dropdown").style.display = "none";
+    document.getElementById("sound-btn").style.display = "none";
     const totalWhite = rows * cols - state.blocks.size;
     const wrongCount = Object.values(state.checked).filter(v => v === "wrong").length;
     const pct = Math.round((totalWhite - wrongCount) / totalWhite * 100);
