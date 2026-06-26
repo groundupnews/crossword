@@ -464,16 +464,23 @@ function audioCtx() {
 
 function playClick() {
   const ctx = audioCtx();
-  const osc = ctx.createOscillator();
+  const dur = 0.06;
+  const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const source = ctx.createBufferSource();
+  source.buffer = buf;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 350;
   const gain = ctx.createGain();
-  osc.connect(gain);
+  gain.gain.setValueAtTime(0.5, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+  source.connect(filter);
+  filter.connect(gain);
   gain.connect(ctx.destination);
-  osc.type = "sine";
-  osc.frequency.value = 1100;
-  gain.gain.setValueAtTime(0.12, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.055);
-  osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + 0.055);
+  source.start(ctx.currentTime);
+  source.stop(ctx.currentTime + dur);
 }
 
 function playTada() {
