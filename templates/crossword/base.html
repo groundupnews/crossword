@@ -5,6 +5,6 @@
     {{ block.super }}
     <div>
     <a href="{% url 'crossword_select' %}">Crosswords</a>
-    <a href="{% url 'crossword_add' %}">New crossword</a>
+    {% if perms.crossword.can_generate_crosswords %}<a href="{% url 'crossword_add' %}">New crossword</a>{% endif %}
     </div>
 {% endblock %}
