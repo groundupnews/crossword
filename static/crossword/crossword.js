@@ -371,6 +371,15 @@ function nowLocalISO() {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function localISOWithOffset(localIsoStr) {
+  const off = -new Date().getTimezoneOffset();
+  const sign = off >= 0 ? "+" : "-";
+  const pad = n => String(n).padStart(2, "0");
+  const offH = pad(Math.floor(Math.abs(off) / 60));
+  const offM = pad(Math.abs(off) % 60);
+  return `${localIsoStr}:00${sign}${offH}:${offM}`;
+}
+
 document.getElementById("publish-btn").addEventListener("click", () => {
   const input = document.getElementById("cw-published");
   const isPublished = input.value && new Date(input.value) <= new Date();
@@ -389,7 +398,9 @@ document.getElementById("save-btn").addEventListener("click", async () => {
     authors: document.getElementById("cw-authors").value,
     editors: document.getElementById("cw-editors").value,
     copyright: document.getElementById("cw-copyright").value,
-    published: document.getElementById("cw-published").value || null,
+    published: document.getElementById("cw-published").value
+      ? localISOWithOffset(document.getElementById("cw-published").value)
+      : null,
     clues: state.clues,
   };
   const resp = await fetch(CW.saveUrl, {
