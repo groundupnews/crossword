@@ -384,6 +384,7 @@ function handleKey(key, shiftKey = false) {
   }
   if (/^[a-zA-Z]$/.test(key)) {
     if (!state.blocks.has(state.cursor)) {
+      playClick();
       state.cells[state.cursor] = key.toUpperCase();
       delete state.indicators[state.cursor];
       clearMessage();
@@ -454,8 +455,28 @@ function clearMessage() {
   msgEl.hidden = true;
 }
 
+let _audioCtx = null;
+function audioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return _audioCtx;
+}
+
+function playClick() {
+  const ctx = audioCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = "sine";
+  osc.frequency.value = 1100;
+  gain.gain.setValueAtTime(0.12, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.055);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.055);
+}
+
 function playTada() {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const ctx = audioCtx();
   const notes = [
     { freq: 523.25, start: 0,    dur: 0.15 },  // C5
     { freq: 659.25, start: 0.12, dur: 0.15 },  // E5
