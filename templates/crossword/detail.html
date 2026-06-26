@@ -25,6 +25,7 @@
           <li data-mode="crossword">Crossword</li>
         </ul>
       </div>
+      <button id="sound-btn" type="button" title="Toggle sound">🔊</button>
       <span class="timer-wrap">
         <span id="timer">Time taken: 00:00:00</span>
         <button id="timer-toggle" type="button">Hide</button>
@@ -116,5 +117,5 @@
     csrfToken: "{{ csrf_token }}",
   };
 </script>
-<script src="{% static 'crossword/solver.js' %}?v=25"></script>
+<script src="{% static 'crossword/solver.js' %}?v=26"></script>
 {% endblock %}

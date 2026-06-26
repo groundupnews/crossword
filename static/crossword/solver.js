@@ -456,6 +456,13 @@ function clearMessage() {
   msgEl.hidden = true;
 }
 
+let soundEnabled = true;
+
+document.getElementById("sound-btn").addEventListener("click", () => {
+  soundEnabled = !soundEnabled;
+  document.getElementById("sound-btn").textContent = soundEnabled ? "🔊" : "🔇";
+});
+
 let _audioCtx = null;
 function audioCtx() {
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -463,6 +470,7 @@ function audioCtx() {
 }
 
 function playClick() {
+  if (!soundEnabled) return;
   const ctx = audioCtx();
   const dur = 0.035;
   const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
@@ -484,6 +492,7 @@ function playClick() {
 }
 
 function playTada() {
+  if (!soundEnabled) return;
   const ctx = audioCtx();
   const notes = [
     { freq: 523.25, start: 0,    dur: 0.15 },  // C5
