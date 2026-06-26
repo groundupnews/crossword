@@ -181,13 +181,15 @@ button:focus-visible {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-#save-btn {
+.buttons button,
+.buttons .btn-icon {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
 }
 
-#save-btn:hover {
+.buttons button:hover,
+.buttons .btn-icon:hover {
   background: #0058b0;
   border-color: #0058b0;
 }
