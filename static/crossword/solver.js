@@ -464,7 +464,7 @@ function audioCtx() {
 
 function playClick() {
   const ctx = audioCtx();
-  const dur = 0.06;
+  const dur = 0.035;
   const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
   const data = buf.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -472,7 +472,7 @@ function playClick() {
   source.buffer = buf;
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
-  filter.frequency.value = 350;
+  filter.frequency.value = 1200;
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0.5, ctx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
