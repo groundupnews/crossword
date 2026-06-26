@@ -272,6 +272,7 @@ function handleKey(key, shiftKey = false) {
   }
   if (key === "Backspace") {
     if (!state.blocks.has(state.cursor)) {
+      playClick();
       if (state.cells[state.cursor]) {
         state.cells[state.cursor] = "";
         delete state.indicators[state.cursor];
