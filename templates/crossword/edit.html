@@ -36,9 +36,12 @@
     </div>
     <p id="warning" class="warning" hidden></p>
     <div class="clue-entry">
-      <label>Clue for <span id="current-slot">—</span>
+      <label for="clue-input">Clue for <span id="current-slot">—</span></label>
+      <div class="clue-entry-row">
+        <button id="prev-slot-btn" class="slot-nav-btn" type="button">&#8592;</button>
         <input type="text" id="clue-input" disabled>
-      </label>
+        <button id="next-slot-btn" class="slot-nav-btn" type="button">&#8594;</button>
+      </div>
     </div>
     <div class="buttons">
       <button id="save-btn" type="button">Save</button>
@@ -55,6 +58,7 @@
       <dt><kbd>Home</kbd> / <kbd>End</kbd></dt><dd>First / last cell</dd>
       <dt><kbd>Tab</kbd> / <kbd>Shift+Tab</kbd></dt><dd>Next / prev incomplete slot</dd>
       <dt><kbd>[</kbd> / <kbd>]</kbd></dt><dd>Fetch answers / clues</dd>
+      <dt><kbd>Ctrl+G</kbd></dt><dd>Focus clue / grid</dd>
       <dt><kbd>Ctrl+S</kbd></dt><dd>Save</dd>
       <dt><kbd>Esc</kbd></dt><dd>Dismiss results</dd>
     </dl>
@@ -104,5 +108,5 @@
     </div>
   </div>
 </div>
-<script src="{% static 'crossword/crossword.js' %}?v=18"></script>
+<script src="{% static 'crossword/crossword.js' %}?v=22"></script>
 {% endblock %}

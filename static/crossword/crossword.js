@@ -343,7 +343,7 @@ svg.addEventListener("keydown", (e) => {
   } else if (e.key === "]") {
     e.preventDefault();
     doFetchClues();
-  } else if (/^[a-zA-Z]$/.test(e.key)) {
+  } else if (/^[a-zA-Z]$/.test(e.key) && !e.ctrlKey && !e.metaKey) {
     e.preventDefault();
     if (!state.blocks.has(state.cursor)) {
       state.cells[state.cursor] = e.key.toUpperCase();
@@ -476,12 +476,55 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "s" && e.ctrlKey) {
     e.preventDefault();
     document.getElementById("save-btn").click();
+  } else if (e.key === "g" && e.ctrlKey) {
+    e.preventDefault();
+    const input = document.getElementById("clue-input");
+    if (document.activeElement === input) {
+      svg.focus();
+    } else if (!input.disabled) {
+      input.focus();
+    }
   } else if (e.key === "Escape") {
     document.getElementById("results-pane").hidden = true;
   } else if (e.key === "Home" || e.key === "End") {
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
     e.preventDefault();
     setCursor(e.key === "Home" ? 0 : rows * cols - 1);
+    svg.focus();
+  }
+});
+
+document.getElementById("clue-input").addEventListener("keydown", (e) => {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const slots = computeSlots();
+    const result = nextSlot(!e.shiftKey, slots);
+    if (result) {
+      state.cursor = result.slot.start;
+      state.direction = result.direction;
+      render();
+    }
+  }
+});
+
+document.getElementById("prev-slot-btn").addEventListener("click", () => {
+  const slots = computeSlots();
+  const result = nextSlot(false, slots);
+  if (result) {
+    state.cursor = result.slot.start;
+    state.direction = result.direction;
+    render();
+    svg.focus();
+  }
+});
+
+document.getElementById("next-slot-btn").addEventListener("click", () => {
+  const slots = computeSlots();
+  const result = nextSlot(true, slots);
+  if (result) {
+    state.cursor = result.slot.start;
+    state.direction = result.direction;
+    render();
     svg.focus();
   }
 });

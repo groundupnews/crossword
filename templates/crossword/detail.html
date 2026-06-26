@@ -37,7 +37,9 @@
     <svg id="grid" tabindex="0"
          viewBox="0 0 {{ crossword.num_cols }} {{ crossword.num_rows }}"></svg>
     <div class="clue-display">
-      <strong id="current-slot">—</strong> <span id="clue-text"></span>
+      <button id="prev-slot-btn" class="slot-nav-btn" type="button">&#8592;</button>
+      <div class="clue-text-wrap"><strong id="current-slot">—</strong> <span id="clue-text"></span></div>
+      <button id="next-slot-btn" class="slot-nav-btn" type="button">&#8594;</button>
     </div>
     <div id="completion-message" hidden></div>
     <div class="mobile-keyboard" id="mobile-keyboard">
@@ -117,5 +119,5 @@
     csrfToken: "{{ csrf_token }}",
   };
 </script>
-<script src="{% static 'crossword/solver.js' %}?v=27"></script>
+<script src="{% static 'crossword/solver.js' %}?v=28"></script>
 {% endblock %}

@@ -344,12 +344,34 @@ button:focus-visible {
 }
 
 .clue-display {
+  display: flex;
+  align-items: center;
   margin: 0.85rem 0;
   font-size: 1.3rem;
   font-weight: bold;
   min-height: 2rem;
   max-width: 32rem;
+  background: #eef4ff;
+  border-radius: 6px;
+  padding: 0.25rem 0.4rem;
 }
+
+.clue-text-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.slot-nav-btn {
+  font-size: 1rem;
+  padding: 0.1rem 0.4rem;
+  color: var(--muted);
+  border-color: var(--line);
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+#prev-slot-btn { margin-right: 5px; }
+#next-slot-btn { margin-left: 5px; }
 
 .clue-display span {
   color: var(--muted);
@@ -364,11 +386,15 @@ button:focus-visible {
   color: var(--muted);
 }
 
-.clue-entry input {
-  display: block;
-  width: 22rem;
-  max-width: 100%;
+.clue-entry-row {
+  display: flex;
+  align-items: center;
   margin-top: 0.25rem;
+}
+
+.clue-entry input {
+  flex: 1;
+  max-width: 22rem;
 }
 
 .buttons {

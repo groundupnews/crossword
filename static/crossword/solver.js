@@ -625,6 +625,28 @@ const timerInterval = setInterval(() => {
     String(s).padStart(2, "0");
 }, 1000);
 
+document.getElementById("prev-slot-btn").addEventListener("click", () => {
+  const slots = computeSlots();
+  const result = nextSlot(false, slots);
+  if (result) {
+    state.cursor = result.slot.start;
+    state.direction = result.direction;
+    render();
+    svg.focus();
+  }
+});
+
+document.getElementById("next-slot-btn").addEventListener("click", () => {
+  const slots = computeSlots();
+  const result = nextSlot(true, slots);
+  if (result) {
+    state.cursor = result.slot.start;
+    state.direction = result.direction;
+    render();
+    svg.focus();
+  }
+});
+
 const _initSlots = computeSlots();
 const _firstAcross = _initSlots.find((s) => s.direction === ACROSS);
 if (_firstAcross) {
