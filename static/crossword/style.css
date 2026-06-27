@@ -348,8 +348,8 @@ button:focus-visible {
 .clue-display {
   display: flex;
   align-items: center;
-  margin: 0.85rem 0;
-  font-size: 1.3rem;
+  margin: 0 0 0.85rem;
+  font-size: 1.1rem;
   font-weight: bold;
   min-height: 2rem;
   max-width: 32rem;
