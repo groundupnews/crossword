@@ -464,31 +464,36 @@ document.getElementById("sound-btn").addEventListener("click", () => {
 });
 
 let _audioCtx = null;
+let _clickBuf = null;
+const CLICK_DUR = 0.035;
+
 function audioCtx() {
-  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    const buf = _audioCtx.createBuffer(1, Math.ceil(_audioCtx.sampleRate * CLICK_DUR), _audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    _clickBuf = buf;
+  }
   return _audioCtx;
 }
 
 function playClick() {
   if (!soundEnabled) return;
   const ctx = audioCtx();
-  const dur = 0.035;
-  const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
   const source = ctx.createBufferSource();
-  source.buffer = buf;
+  source.buffer = _clickBuf;
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
   filter.frequency.value = 1200;
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0.5, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + CLICK_DUR);
   source.connect(filter);
   filter.connect(gain);
   gain.connect(ctx.destination);
   source.start(ctx.currentTime);
-  source.stop(ctx.currentTime + dur);
+  source.stop(ctx.currentTime + CLICK_DUR);
 }
 
 function playTada() {
