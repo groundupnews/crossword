@@ -638,6 +638,7 @@ document.getElementById("prev-slot-btn").addEventListener("click", () => {
     state.direction = result.direction;
     render();
     svg.focus();
+    playClick();
   }
 });
 
@@ -649,6 +650,7 @@ document.getElementById("next-slot-btn").addEventListener("click", () => {
     state.direction = result.direction;
     render();
     svg.focus();
+    playClick();
   }
 });
 
