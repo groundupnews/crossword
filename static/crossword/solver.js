@@ -616,7 +616,7 @@ const timerEl = document.getElementById("timer");
 document.getElementById("timer-toggle").addEventListener("click", () => {
   const hidden = !timerEl.hidden;
   timerEl.hidden = hidden;
-  document.getElementById("timer-toggle").textContent = hidden ? "Show" : "Hide";
+  document.getElementById("timer-toggle").textContent = hidden ? "Show 🕐" : "Hide";
 });
 
 const timerInterval = setInterval(() => {

@@ -427,7 +427,7 @@ button:focus-visible {
 }
 
 #timer {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   color: var(--muted);
   white-space: nowrap;
 }
