@@ -458,7 +458,7 @@ button:focus-visible {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
-  font-size: 0.72rem;
+  font-size: 0.6rem;
   padding: 0.2rem 0.5rem;
 }
 
