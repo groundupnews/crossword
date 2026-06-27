@@ -624,7 +624,7 @@ const timerInterval = setInterval(() => {
   const h = Math.floor(timerSeconds / 3600);
   const m = Math.floor((timerSeconds % 3600) / 60);
   const s = timerSeconds % 60;
-  timerEl.textContent = "Time: " +
+  timerEl.textContent = "🕐 " +
     String(h).padStart(2, "0") + ":" +
     String(m).padStart(2, "0") + ":" +
     String(s).padStart(2, "0");
