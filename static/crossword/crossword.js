@@ -424,6 +424,7 @@ function showResults(title, items, onPick) {
   const pane = document.getElementById("results-pane");
   const list = document.getElementById("results-list");
   document.getElementById("results-title").textContent = title;
+  document.getElementById("results-pager").hidden = true;
   list.innerHTML = "";
   if (!items.length) {
     const li = document.createElement("li");
@@ -439,20 +440,51 @@ function showResults(title, items, onPick) {
   pane.hidden = false;
 }
 
-async function doFetchAnswers() {
-  const slot = activeSlot();
-  if (!slot) return;
-  const pattern = slot.indices.map((i) => state.cells[i] || "?").join("");
-  const url = CW.fetchAnswersUrl + "?pattern=" + encodeURIComponent(pattern);
+// Tracks the pattern/slot/page behind the answers pane so the pager
+// buttons can re-fetch without redoing activeSlot().
+let answersQuery = null;
+
+async function loadAnswersPage(page) {
+  const url =
+    CW.fetchAnswersUrl +
+    "?pattern=" + encodeURIComponent(answersQuery.pattern) +
+    "&page=" + page;
   const resp = await fetch(url);
   const data = await resp.json();
+  answersQuery.page = data.page;
+  answersQuery.totalPages = data.total_pages;
+  const slot = answersQuery.slot;
   showResults("Answers", data.answers, (word) => {
     slot.indices.forEach((i, k) => (state.cells[i] = word[k]));
     markDirty();
     state.cursor = slot.start;
     render();
   });
+
+  const pager = document.getElementById("results-pager");
+  if (data.total_pages > 1) {
+    pager.hidden = false;
+    document.getElementById("results-page-info").textContent =
+      `Page ${data.page} of ${data.total_pages}` + (data.truncated ? " (more than shown)" : "");
+    document.getElementById("results-prev").disabled = data.page <= 1;
+    document.getElementById("results-next").disabled = data.page >= data.total_pages;
+  }
 }
+
+async function doFetchAnswers() {
+  const slot = activeSlot();
+  if (!slot) return;
+  const pattern = slot.indices.map((i) => state.cells[i] || "?").join("");
+  answersQuery = { pattern, slot, page: 1, totalPages: 0 };
+  await loadAnswersPage(1);
+}
+
+document.getElementById("results-prev").addEventListener("click", () => {
+  if (answersQuery && answersQuery.page > 1) loadAnswersPage(answersQuery.page - 1);
+});
+document.getElementById("results-next").addEventListener("click", () => {
+  if (answersQuery && answersQuery.page < answersQuery.totalPages) loadAnswersPage(answersQuery.page + 1);
+});
 
 async function doFetchClues() {
   const slot = activeSlot();

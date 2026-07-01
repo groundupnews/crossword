@@ -1,4 +1,5 @@
 import json
+import string
 
 from django.contrib.auth.models import Permission, User
 from django.core.exceptions import ValidationError
@@ -328,6 +329,26 @@ class FetchAnswersViewTest(TestCase):
         )
         data = response.json()
         self.assertCountEqual(data["answers"], ["ZZZA", "ZZZB"])
+
+    def test_paginates_sorted_results(self):
+        # 26 matches for "ZZZ?" (one per letter) is more than a page's worth
+        # (20). Page 1 should hold the first 20 alphabetically, page 2 the rest.
+        letters = string.ascii_uppercase
+        for letter in letters:
+            Word.objects.create(text=f"ZZZ{letter}")
+        cw = make_crossword(num_cols=4, cells=["", "", "", ""])
+
+        page1 = self.client.get(
+            reverse("fetch_answers", args=[cw.pk]), {"pattern": "ZZZ?", "page": 1}
+        ).json()
+        page2 = self.client.get(
+            reverse("fetch_answers", args=[cw.pk]), {"pattern": "ZZZ?", "page": 2}
+        ).json()
+
+        self.assertEqual(page1["answers"], [f"ZZZ{c}" for c in letters[:20]])
+        self.assertEqual(page1["total_pages"], 2)
+        self.assertFalse(page1["truncated"])
+        self.assertEqual(page2["answers"], [f"ZZZ{c}" for c in letters[20:]])
 
 
 # ---------------------------------------------------------------------------

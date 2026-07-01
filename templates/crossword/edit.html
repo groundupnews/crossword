@@ -67,6 +67,11 @@
   <aside id="results-pane" class="results-pane" hidden>
     <h2 id="results-title"></h2>
     <ul id="results-list"></ul>
+    <div id="results-pager" class="results-pager" hidden>
+      <button id="results-prev" type="button">&lsaquo; Prev</button>
+      <span id="results-page-info"></span>
+      <button id="results-next" type="button">Next &rsaquo;</button>
+    </div>
   </aside>
 
   <aside class="clue-list">
@@ -108,5 +113,5 @@
     </div>
   </div>
 </div>
-<script src="{% static 'crossword/crossword.js' %}?v=23"></script>
+<script src="{% static 'crossword/crossword.js' %}?v=24"></script>
 {% endblock %}

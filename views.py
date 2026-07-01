@@ -258,25 +258,46 @@ def crossword_save(request, pk):
     return JsonResponse({"status": "ok"})
 
 
+FETCH_ANSWERS_PAGE_SIZE = 20
+FETCH_ANSWERS_MAX_MATCHES = 500
+
+
 @permission_required(PERM)
 def fetch_answers(request, pk):
-    """Return up to 10 Word matches for the current slot pattern.
+    """Return a page of Word matches for the current slot pattern.
 
     The client sends `pattern`: filled positions as their letter, blanks as
     "?". Matching uses SQLite GLOB, which enforces length and fixed letters.
-    Returns up to 20 matches.
+    Results are sorted and paged (`page`, 1-indexed, 20 per page). At most
+    `FETCH_ANSWERS_MAX_MATCHES` matches are ever considered, to bound the
+    cost of very permissive patterns; `truncated` is set when that cap was
+    hit, meaning further matches exist beyond what's paged over.
     """
     pattern = request.GET.get("pattern", "")
+    try:
+        page = int(request.GET.get("page", 1))
+    except ValueError:
+        page = 1
+    page = max(page, 1)
+
     texts = []
     if pattern:
         table = Word._meta.db_table
         rows = Word.objects.raw(
-            f"SELECT id, text FROM {table} WHERE text GLOB %s", [pattern]
+            f"SELECT id, text FROM {table} WHERE text GLOB %s "
+            f"ORDER BY text LIMIT {FETCH_ANSWERS_MAX_MATCHES}",
+            [pattern],
         )
         texts = [w.text for w in rows]
-    if len(texts) > 20:
-        texts = random.sample(texts, 20)
-    return JsonResponse({"answers": sorted(texts)})
+
+    total_pages = -(-len(texts) // FETCH_ANSWERS_PAGE_SIZE)  # ceil div
+    start = (page - 1) * FETCH_ANSWERS_PAGE_SIZE
+    return JsonResponse({
+        "answers": texts[start : start + FETCH_ANSWERS_PAGE_SIZE],
+        "page": page,
+        "total_pages": total_pages,
+        "truncated": len(texts) >= FETCH_ANSWERS_MAX_MATCHES,
+    })
 
 
 @permission_required(PERM)
