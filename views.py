@@ -234,7 +234,10 @@ def crossword_save(request, pk):
         ).delete()
 
         for slot in complete:
-            word, _ = Word.objects.get_or_create(text=slot.letters(cells))
+            word, _ = Word.objects.get_or_create(
+                text=slot.letters(cells),
+                defaults={"source_crossword": crossword},
+            )
 
             clue_obj = None
             clue_text = clues.get(f"{slot.number}{slot.direction}")

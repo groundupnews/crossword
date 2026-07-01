@@ -204,6 +204,46 @@ class CrosswordSaveViewTest(TestCase):
         })
         self.assertFalse(Entry.objects.filter(crossword=self.cw).exists())
 
+    def test_new_word_gets_source_crossword(self):
+        # A word that doesn't exist yet should have source_crossword set to the
+        # crossword it was first saved from. Uses a synthetic word unlikely to
+        # appear in any loaded fixture.
+        cw = make_crossword(num_cols=5, cells=["Z", "Z", "Z", "Z", "Z"])
+        response = self.client.post(
+            reverse("crossword_save", args=[cw.pk]),
+            data=json.dumps({
+                "cells": ["Z", "Z", "Z", "Z", "Z"],
+                "blocked_out_squares": [],
+                "name": "",
+                "description": "",
+                "clues": {},
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Word.objects.get(text="ZZZZZ").source_crossword, cw)
+
+    def test_existing_word_source_crossword_not_overwritten(self):
+        # If the word already exists with a different source_crossword, saving it
+        # again from another crossword should leave the original source intact.
+        other_cw = make_crossword(num_cols=5, cells=["Z", "Z", "Z", "Z", "Z"])
+        word, _ = Word.objects.get_or_create(text="ZZZZZ")
+        word.source_crossword = other_cw
+        word.save()
+        cw = make_crossword(num_cols=5, cells=["Z", "Z", "Z", "Z", "Z"])
+        self.client.post(
+            reverse("crossword_save", args=[cw.pk]),
+            data=json.dumps({
+                "cells": ["Z", "Z", "Z", "Z", "Z"],
+                "blocked_out_squares": [],
+                "name": "",
+                "description": "",
+                "clues": {},
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(Word.objects.get(text="ZZZZZ").source_crossword, other_cw)
+
     def test_stale_entry_removed_when_slot_cleared(self):
         # If a previously complete slot is cleared, the corresponding Entry record
         # should be deleted on the next save. This keeps the Entry table in sync

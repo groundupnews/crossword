@@ -18,6 +18,13 @@ class Word(models.Model):
     # gives ample headroom without being unlimited. 32 would also work — 64 is somewhat
     # arbitrary but a common power-of-two choice.
     text = models.CharField(max_length=64, unique=True, validators=[uppercase_az])
+    source_crossword = models.ForeignKey(
+        "Crossword",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="sourced_words",
+    )
     date_added = models.DateTimeField(auto_now_add=True)
     date_modified = models.DateTimeField(auto_now=True)
 
