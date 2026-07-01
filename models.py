@@ -39,6 +39,13 @@ class Word(models.Model):
 class Clue(models.Model):
     text = models.ForeignKey(Word, on_delete=models.CASCADE, related_name="clues")
     clue = models.TextField()
+    source_crossword = models.ForeignKey(
+        "Crossword",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="sourced_clues",
+    )
     date_added = models.DateTimeField(auto_now_add=True)
     date_modified = models.DateTimeField(auto_now=True)
 

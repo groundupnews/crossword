@@ -242,7 +242,11 @@ def crossword_save(request, pk):
             clue_obj = None
             clue_text = clues.get(f"{slot.number}{slot.direction}")
             if clue_text:
-                clue_obj, _ = Clue.objects.get_or_create(text=word, clue=clue_text)
+                clue_obj, _ = Clue.objects.get_or_create(
+                    text=word,
+                    clue=clue_text,
+                    defaults={"source_crossword": crossword},
+                )
 
             Entry.objects.update_or_create(
                 crossword=crossword,
