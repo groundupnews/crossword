@@ -1,3 +1,8 @@
+"""
+Nathan wrote this code by hand.
+It fetches the best words (answers) for a given slot.
+"""
+
 import sqlite3
 from fnmatch import fnmatch
 
