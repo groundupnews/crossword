@@ -8,12 +8,7 @@ WORD_RE = re.compile(r"^[A-Z]+$")
 
 def get_words(path="british-english"):
     with open(path, encoding="utf-8") as f:
-        return [
-            word
-            for line in f
-            if WORD_RE.match(word := line.strip().upper())
-        ]
-
+        return [word for line in f if WORD_RE.match(word := line.strip().upper())]
 
 
 class TestGrid(unittest.TestCase):
@@ -35,7 +30,7 @@ OGLED
 
     def setUp(self):
         self.grid1 = Grid(self.cw1, get_words())
-        self.grid2 = Grid(self.cw2)
+        self.grid2 = Grid(self.cw2, get_words())
 
     def test_grid(self):
         self.assertEqual(self.grid1.rows, 5)
