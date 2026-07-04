@@ -1,5 +1,7 @@
 import json
+import os
 import string
+import unittest
 
 from django.contrib.auth.models import Permission, User
 from django.core.exceptions import ValidationError
@@ -762,3 +764,33 @@ class XdRoundTripTest(TestCase):
         reparsed = parse_xd(rendered)
         self.assertEqual(reparsed["across_clues"], original["across_clues"])
         self.assertEqual(reparsed["down_clues"], original["down_clues"])
+
+
+# ---------------------------------------------------------------------------
+# cwutils — bridges its standalone unittest suite into ./manage.py test
+# ---------------------------------------------------------------------------
+
+class CwutilsSuiteTest(unittest.TestCase):
+    """cwutils/test.py is written to run standalone from inside cwutils/: it
+    imports its sibling cwutils.py as a bare top-level module and opens
+    "british-english" by a path relative to that directory. Discovering it
+    with cwutils/ as top_level_dir satisfies the import, and running from
+    that directory satisfies the file open.
+    """
+
+    def test_cwutils_suite_passes(self):
+        cwutils_dir = os.path.join(os.path.dirname(__file__), "cwutils")
+        suite = unittest.TestLoader().discover(
+            start_dir=cwutils_dir, pattern="test.py", top_level_dir=cwutils_dir
+        )
+        result = unittest.TestResult()
+        cwd = os.getcwd()
+        os.chdir(cwutils_dir)
+        try:
+            suite.run(result)
+        finally:
+            os.chdir(cwd)
+        if not result.wasSuccessful():
+            problems = result.failures + result.errors
+            details = "\n".join(f"{test}:\n{trace}" for test, trace in problems)
+            self.fail(f"cwutils test suite: {len(problems)} failure(s)/error(s):\n{details}")
