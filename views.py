@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, ListView
 
 from . import grid
+from .cwutils.cwutils import Grid as CwutilsGrid
 from .forms import CrosswordCreateForm
 from .models import Clue, Crossword, Entry, Word
 from .xd import parse_xd, render_xd, save_crossword_from_xd
@@ -259,36 +260,58 @@ def crossword_save(request, pk):
 
 
 FETCH_ANSWERS_PAGE_SIZE = 20
-FETCH_ANSWERS_MAX_MATCHES = 500
+
+
+def _cwutils_grid_string(num_rows, num_cols, blocked, cells):
+    """Render live grid state as the multi-line string cwutils.Grid expects
+    ("#" block, "-" blank, else the letter)."""
+    lines = []
+    for r in range(num_rows):
+        row = []
+        for c in range(num_cols):
+            i = r * num_cols + c
+            row.append("#" if i in blocked else (cells[i] or "-"))
+        lines.append("".join(row))
+    return "\n" + "\n".join(lines) + "\n"
 
 
 @permission_required(PERM)
+@require_POST
 def fetch_answers(request, pk):
-    """Return a page of Word matches for the current slot pattern.
+    """Return a page of Word matches for the current slot, ranked by
+    cwutils.Slot.words_freedom(): candidates that leave the most freedom in
+    their hardest-constrained crossing slot rank first.
 
-    The client sends `pattern`: filled positions as their letter, blanks as
-    "?". Matching uses SQLite GLOB, which enforces length and fixed letters.
-    Results are sorted and paged (`page`, 1-indexed, 20 per page). At most
-    `FETCH_ANSWERS_MAX_MATCHES` matches are ever considered, to bound the
-    cost of very permissive patterns; `truncated` is set when that cap was
-    hit, meaning further matches exist beyond what's paged over.
+    The client sends the live, possibly-unsaved grid state, since the match
+    should reflect what's on screen rather than the last save: `cells`,
+    `blocked_out_squares`, `cursor` (a cell index inside the target slot),
+    `direction` ("A"/"D"), and `page` (1-indexed, 20 per page).
     """
-    pattern = request.GET.get("pattern", "")
+    crossword = get_object_or_404(Crossword, pk=pk)
+    payload = json.loads(request.body)
+    cells = payload.get("cells", [])
+    blocked = set(payload.get("blocked_out_squares", []))
+    cursor = payload.get("cursor", 0)
+    direction = payload.get("direction", Entry.ACROSS)
     try:
-        page = int(request.GET.get("page", 1))
-    except ValueError:
+        page = int(payload.get("page", 1))
+    except (TypeError, ValueError):
         page = 1
     page = max(page, 1)
 
+    grid_string = _cwutils_grid_string(crossword.num_rows, crossword.num_cols, blocked, cells)
+    words = list(Word.objects.order_by("text").values_list("text", flat=True))
+    slot = CwutilsGrid(grid_string, words).slot_for_cell(direction, cursor)
+
     texts = []
-    if pattern:
-        table = Word._meta.db_table
-        rows = Word.objects.raw(
-            f"SELECT id, text FROM {table} WHERE text GLOB %s "
-            f"ORDER BY text LIMIT {FETCH_ANSWERS_MAX_MATCHES}",
-            [pattern],
-        )
-        texts = [w.text for w in rows]
+    if slot:
+        try:
+            texts = [word for word, _ in slot.words_freedom()]
+        except ValueError:
+            # No unresolved crossing to score by (no intersecting slots, or
+            # every crossing cell is already filled) — fall back to a plain
+            # match, since cwutils can't rank freedom in that case.
+            texts = sorted(slot.words())
 
     total_pages = -(-len(texts) // FETCH_ANSWERS_PAGE_SIZE)  # ceil div
     start = (page - 1) * FETCH_ANSWERS_PAGE_SIZE
@@ -296,7 +319,6 @@ def fetch_answers(request, pk):
         "answers": texts[start : start + FETCH_ANSWERS_PAGE_SIZE],
         "page": page,
         "total_pages": total_pages,
-        "truncated": len(texts) >= FETCH_ANSWERS_MAX_MATCHES,
     })
 
 

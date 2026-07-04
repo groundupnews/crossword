@@ -1,5 +1,19 @@
+import sqlite3
 import unittest
 from cwutils import Grid, Slot
+import re
+
+WORD_RE = re.compile(r"^[A-Z]+$")
+
+
+def get_words(path="british-english"):
+    with open(path, encoding="utf-8") as f:
+        return [
+            word
+            for line in f
+            if WORD_RE.match(word := line.strip().upper())
+        ]
+
 
 
 class TestGrid(unittest.TestCase):
@@ -20,16 +34,16 @@ OGLED
 """
 
     def setUp(self):
-        self.grid1 = Grid(self.cw1)
+        self.grid1 = Grid(self.cw1, get_words())
         self.grid2 = Grid(self.cw2)
 
     def test_grid(self):
         self.assertEqual(self.grid1.rows, 5)
         self.assertEqual(self.grid1.cols, 5)
-        self.assertGreater(len(self.grid1.dictionary.words), 1000)
+        self.assertGreater(len(self.grid1.words), 1000)
         self.assertEqual(self.grid2.rows, 5)
         self.assertEqual(self.grid2.cols, 5)
-        self.assertEqual(self.grid1.dictionary.words, self.grid2.dictionary.words)
+        self.assertEqual(self.grid1.words, self.grid2.words)
         self.assertNotEqual(self.grid1.slots, self.grid2.slots)
 
     def test_slots(self):
@@ -154,7 +168,8 @@ class TestMatching(unittest.TestCase):
 """
 
     def setUp(self):
-        self.grid1 = Grid(self.cw1)
+        self.grid1 = Grid(self.cw1, get_words())
+        print(len(self.grid1.words))
 
     def test_glob(self):
         slot = self.grid1.slot_for_cell("A", 5)

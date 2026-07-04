@@ -314,40 +314,51 @@ class FetchAnswersViewTest(TestCase):
     def setUp(self):
         make_user_with_perm(self.client)
 
+    def _fetch(self, cw, cells, page=1):
+        # cursor=0, direction=ACROSS selects the one across slot in these
+        # single-row fixture grids.
+        return self.client.post(
+            reverse("fetch_answers", args=[cw.pk]),
+            data=json.dumps({
+                "cells": cells,
+                "blocked_out_squares": [],
+                "cursor": 0,
+                "direction": ACROSS,
+                "page": page,
+            }),
+            content_type="application/json",
+        )
+
     def test_returns_words_matching_glob_pattern(self):
-        # The fetch-answers endpoint takes a GLOB pattern where "?" matches any
-        # single letter. It should return words that match the pattern and exclude
-        # those that don't. Synthetic words starting with "ZZZ" are used to avoid
-        # collisions with real words loaded by the wordlist migration.
+        # Synthetic words starting with "ZZZ" are used to avoid collisions with
+        # real words loaded by the wordlist migration. The blank final cell
+        # means the slot pattern is effectively "ZZZ?".
         Word.objects.create(text="ZZZA")
         Word.objects.create(text="ZZZB")
         Word.objects.create(text="DDDA")
         cw = make_crossword(num_cols=4, cells=["", "", "", ""])
 
-        response = self.client.get(
-            reverse("fetch_answers", args=[cw.pk]), {"pattern": "ZZZ?"}
-        )
-        data = response.json()
+        data = self._fetch(cw, ["Z", "Z", "Z", ""]).json()
         self.assertCountEqual(data["answers"], ["ZZZA", "ZZZB"])
 
     def test_paginates_sorted_results(self):
-        # 26 matches for "ZZZ?" (one per letter) is more than a page's worth
-        # (20). Page 1 should hold the first 20 alphabetically, page 2 the rest.
+        # 26 matches for the "ZZZ?" pattern (one per letter) is more than a
+        # page's worth (20). This is a single-row grid, so every column is a
+        # length-1 down slot that no dictionary word (minimum length 2) can
+        # ever fill; every candidate ties at that same freedom score, so
+        # cwutils' stable sort falls back to the order words were supplied in
+        # (alphabetical, per the view's query). Page 1 should hold the first
+        # 20 letters, page 2 the rest.
         letters = string.ascii_uppercase
         for letter in letters:
             Word.objects.create(text=f"ZZZ{letter}")
         cw = make_crossword(num_cols=4, cells=["", "", "", ""])
 
-        page1 = self.client.get(
-            reverse("fetch_answers", args=[cw.pk]), {"pattern": "ZZZ?", "page": 1}
-        ).json()
-        page2 = self.client.get(
-            reverse("fetch_answers", args=[cw.pk]), {"pattern": "ZZZ?", "page": 2}
-        ).json()
+        page1 = self._fetch(cw, ["Z", "Z", "Z", ""], page=1).json()
+        page2 = self._fetch(cw, ["Z", "Z", "Z", ""], page=2).json()
 
         self.assertEqual(page1["answers"], [f"ZZZ{c}" for c in letters[:20]])
         self.assertEqual(page1["total_pages"], 2)
-        self.assertFalse(page1["truncated"])
         self.assertEqual(page2["answers"], [f"ZZZ{c}" for c in letters[20:]])
 
 

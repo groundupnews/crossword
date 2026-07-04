@@ -445,15 +445,21 @@ function showResults(title, items, onPick) {
 let answersQuery = null;
 
 async function loadAnswersPage(page) {
-  const url =
-    CW.fetchAnswersUrl +
-    "?pattern=" + encodeURIComponent(answersQuery.pattern) +
-    "&page=" + page;
-  const resp = await fetch(url);
+  const slot = answersQuery.slot;
+  const resp = await fetch(CW.fetchAnswersUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": CW.csrfToken },
+    body: JSON.stringify({
+      cells: state.cells,
+      blocked_out_squares: Array.from(state.blocks),
+      cursor: slot.start,
+      direction: slot.direction,
+      page,
+    }),
+  });
   const data = await resp.json();
   answersQuery.page = data.page;
   answersQuery.totalPages = data.total_pages;
-  const slot = answersQuery.slot;
   showResults("Answers", data.answers, (word) => {
     slot.indices.forEach((i, k) => (state.cells[i] = word[k]));
     markDirty();
@@ -465,7 +471,7 @@ async function loadAnswersPage(page) {
   if (data.total_pages > 1) {
     pager.hidden = false;
     document.getElementById("results-page-info").textContent =
-      `Page ${data.page} of ${data.total_pages}` + (data.truncated ? " (more than shown)" : "");
+      `Page ${data.page} of ${data.total_pages}`;
     document.getElementById("results-prev").disabled = data.page <= 1;
     document.getElementById("results-next").disabled = data.page >= data.total_pages;
   }
@@ -474,8 +480,7 @@ async function loadAnswersPage(page) {
 async function doFetchAnswers() {
   const slot = activeSlot();
   if (!slot) return;
-  const pattern = slot.indices.map((i) => state.cells[i] || "?").join("");
-  answersQuery = { pattern, slot, page: 1, totalPages: 0 };
+  answersQuery = { slot, page: 1, totalPages: 0 };
   await loadAnswersPage(1);
 }
 

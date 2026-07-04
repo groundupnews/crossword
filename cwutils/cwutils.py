@@ -3,20 +3,7 @@ Nathan wrote this code by hand.
 It fetches the best words (answers) for a given slot.
 """
 
-import sqlite3
 from fnmatch import fnmatch
-
-
-class Dictionary:
-    words = []
-
-    def __init__(self):
-        if len(self.words) == 0:
-            conn = sqlite3.connect("db.sqlite3")
-            cur = conn.cursor()
-            cur.execute("SELECT text FROM crossword_word")
-            self.words = [row[0] for row in cur.fetchall()]
-            conn.close()
 
 
 class Slot:
@@ -102,7 +89,7 @@ class Slot:
 
     def words(self):
         glob = self.glob()
-        words = self.grid.dictionary.words
+        words = self.grid.words
         result = [w for w in words if fnmatch(w, glob)]
         return result
 
@@ -124,7 +111,7 @@ class Slot:
                 glob = "".join(glob_list)
                 if glob not in glob_dict:
                     words = [
-                        w for w in self.grid.dictionary.words if len(w) == len(glob)
+                        w for w in self.grid.words if len(w) == len(glob)
                     ]
                     matching_words = [w for w in words if fnmatch(w, glob)]
                     glob_dict[glob] = len(matching_words)
@@ -135,9 +122,11 @@ class Slot:
 
 
 class Grid:
-    dictionary = Dictionary()
+    words = []
 
-    def __init__(self, string: str):
+    def __init__(self, string: str, words=None):
+        if words: 
+            self.words = words
         self.cells = []
         rows = 0
         cols = 0
