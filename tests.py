@@ -363,6 +363,14 @@ class FetchAnswersViewTest(TestCase):
         self.assertEqual(page1["total_pages"], 2)
         self.assertEqual(page2["answers"], [f"ZZZ{c}" for c in letters[20:]])
 
+    def test_excludes_words_flagged_exclude_from_recommendations(self):
+        Word.objects.create(text="ZZZA")
+        Word.objects.create(text="ZZZB", exclude_from_recommendations=True)
+        cw = make_crossword(num_cols=4, cells=["", "", "", ""])
+
+        data = self._fetch(cw, ["Z", "Z", "Z", ""]).json()
+        self.assertCountEqual(data["answers"], ["ZZZA"])
+
 
 # ---------------------------------------------------------------------------
 # Permission checks

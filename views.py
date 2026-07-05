@@ -300,7 +300,11 @@ def fetch_answers(request, pk):
     page = max(page, 1)
 
     grid_string = _cwutils_grid_string(crossword.num_rows, crossword.num_cols, blocked, cells)
-    words = list(Word.objects.order_by("text").values_list("text", flat=True))
+    words = list(
+        Word.objects.exclude(exclude_from_recommendations=True)
+        .order_by("text")
+        .values_list("text", flat=True)
+    )
     slot = CwutilsGrid(grid_string, words).slot_for_cell(direction, cursor)
 
     texts = []

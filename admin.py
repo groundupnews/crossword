@@ -5,7 +5,9 @@ from .models import Clue, Crossword, Entry, Word
 
 @admin.register(Word)
 class WordAdmin(admin.ModelAdmin):
-    list_display = ("text", "date_added", "date_modified")
+    list_display = ("text", "exclude_from_recommendations", "date_added", "date_modified")
+    list_editable = ("exclude_from_recommendations",)
+    list_filter = ("exclude_from_recommendations",)
     search_fields = ("text",)
     ordering = ("text",)
 

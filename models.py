@@ -25,6 +25,7 @@ class Word(models.Model):
         on_delete=models.SET_NULL,
         related_name="sourced_words",
     )
+    exclude_from_recommendations = models.BooleanField(default=False)
     date_added = models.DateTimeField(auto_now_add=True)
     date_modified = models.DateTimeField(auto_now=True)
 
