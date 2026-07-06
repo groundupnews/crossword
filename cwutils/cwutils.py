@@ -122,7 +122,7 @@ class Slot:
                     glob_dict[glob] = len(matching_words)
                 result[word].append(glob_dict[glob])
         arr = list(result.items())
-        arr = sorted(arr, key=lambda tpl: min(tpl[1]), reverse=True)
+        arr = sorted(arr, key=lambda tpl: min_no_error(tpl[1]), reverse=True)
         return arr
 
 
