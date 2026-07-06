@@ -191,5 +191,54 @@ class TestMatching(unittest.TestCase):
         print(self.grid1.slots[1].words_freedom())
 
 
+class TestWordsFreedom(unittest.TestCase):
+    """Hand-built grids and word lists (not the real dictionary) so every
+    expected score can be verified exactly rather than just bounded."""
+
+    def test_ranks_by_worst_crossing_freedom_and_excludes_length_one_slots(self):
+        # Row 0 is the target across slot, glob "?A?" (middle letter fixed).
+        # Column 0 is blocked directly below row 0, so its down run is
+        # length 1 -- not a real slot -- and must be excluded from scoring.
+        # Column 1's down crossing always lands on the fixed middle letter,
+        # so it never contributes. Column 2 has a real length-2 down run
+        # and is the only crossing that should affect the ranking.
+        #
+        # If the length-1 run at column 0 were not excluded, every
+        # candidate would pick up a spurious 0 from it (no 1-letter words
+        # exist) and all four would tie at 0 instead of being ranked.
+        grid = Grid("\n-A-\n#--\n", ["CAT", "MAT", "BAG", "RAN", "TO", "TI", "GO"])
+        across = grid.slot_for_cell("A", 0)
+
+        self.assertEqual(len(across.intersections()), 2)
+        self.assertEqual(
+            across.words_freedom(),
+            [("CAT", [2]), ("MAT", [2]), ("BAG", [1]), ("RAN", [0])],
+        )
+
+    def test_fully_resolved_slot_scores_zero_without_error(self):
+        # Every cell of the target slot already holds a letter, so no
+        # crossing is unresolved. words_freedom() must not raise (min() of
+        # an empty list) and should report freedom 0 for the word.
+        grid = Grid("\nAT\n--\n", ["AT"])
+        across = grid.slot_for_cell("A", 0)
+
+        self.assertEqual(across.words_freedom(), [("AT", [])])
+
+    def test_slot_with_no_crossings_at_all_scores_zero_without_error(self):
+        # A single-row grid has no real down slots at all (every column
+        # run is length 1, so none qualify as a slot). words_freedom()
+        # must still return a result per candidate instead of raising.
+        grid = Grid("\n---\n", ["CAT", "DOG"])
+        across = grid.slot_for_cell("A", 0)
+
+        self.assertEqual(across.words_freedom(), [("CAT", []), ("DOG", [])])
+
+    def test_no_matching_words_returns_empty(self):
+        grid = Grid("\nA-\n--\n", ["ZOO"])  # wrong length, doesn't match "A?"
+        across = grid.slot_for_cell("A", 0)
+
+        self.assertEqual(across.words_freedom(), [])
+
+
 if __name__ == "__main__":
     unittest.main()
