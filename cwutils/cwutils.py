@@ -48,6 +48,7 @@ class Slot:
         else:
             self._len = self._len_down()
         self._set_cells()
+        self._intersections = []
 
     def __len__(self):
         return self._len
@@ -94,6 +95,12 @@ class Slot:
         return result
 
     def words_freedom(self):
+        def min_no_error(lst):
+            try:
+                return min(lst)
+            except ValueError:
+                return 0
+
         glob_dict = {}
         self_words = self.words()
         self_glob = self.glob()
@@ -110,9 +117,7 @@ class Slot:
                 glob_list[i] = word[j]
                 glob = "".join(glob_list)
                 if glob not in glob_dict:
-                    words = [
-                        w for w in self.grid.words if len(w) == len(glob)
-                    ]
+                    words = [w for w in self.grid.words if len(w) == len(glob)]
                     matching_words = [w for w in words if fnmatch(w, glob)]
                     glob_dict[glob] = len(matching_words)
                 result[word].append(glob_dict[glob])
@@ -125,7 +130,7 @@ class Grid:
     words = []
 
     def __init__(self, string: str, words=None):
-        if words: 
+        if words:
             self.words = words
         self.cells = []
         rows = 0
@@ -162,12 +167,12 @@ class Grid:
 
         def push_slot(dir, r, c):
             nonlocal inc_slot_num
-            nonlocal result
+            nonlocal slots
             inc_slot_num = True
-            result.append(Slot(grid=self, dir=dir, id=slot_num, row=r, col=c))
+            slots.append(Slot(grid=self, dir=dir, id=slot_num, row=r, col=c))
 
         inc_slot_num = False
-        result = []
+        slots = []
         slot_num = 1
         for r in range(self.rows):
             for c in range(self.cols):
@@ -185,7 +190,7 @@ class Grid:
                     push_slot("D", r, c)
                 if inc_slot_num:
                     slot_num += 1
-        return result
+        return [slot for slot in slots if len(slot) > 1]
 
     def slot_for_cell(self, dir, cell):
         for slot in self.slots:

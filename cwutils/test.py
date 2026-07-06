@@ -164,7 +164,6 @@ class TestMatching(unittest.TestCase):
 
     def setUp(self):
         self.grid1 = Grid(self.cw1, get_words())
-        print(len(self.grid1.words))
 
     def test_glob(self):
         slot = self.grid1.slot_for_cell("A", 5)
