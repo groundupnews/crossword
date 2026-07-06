@@ -239,6 +239,22 @@ class TestWordsFreedom(unittest.TestCase):
 
         self.assertEqual(across.words_freedom(), [])
 
+    def test_ties_on_worst_crossing_are_broken_by_mean(self):
+        # ABC and ABD share their first two letters, so they get identical
+        # scores on the first two crossings; they differ only in the third
+        # letter, where ABD's crossing ("D?") has more matches than ABC's
+        # ("C?"). Both tie at min=1, but ABD has the better mean and should
+        # be ranked first -- without the tie-break they'd keep self_words'
+        # original order (ABC before ABD).
+        words = ["ABC", "ABD", "AT", "BE", "CO", "CA", "DO", "DA", "DE", "DI", "DU"]
+        grid = Grid("\n---\n---\n", words)
+        across = grid.slot_for_cell("A", 0)
+
+        self.assertEqual(
+            across.words_freedom(),
+            [("ABD", [1, 1, 5]), ("ABC", [1, 1, 2])],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

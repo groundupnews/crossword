@@ -121,8 +121,14 @@ class Slot:
                     matching_words = [w for w in words if fnmatch(w, glob)]
                     glob_dict[glob] = len(matching_words)
                 result[word].append(glob_dict[glob])
+
+        def mean(lst):
+            return sum(lst) / len(lst) if lst else 0
+
         arr = list(result.items())
-        arr = sorted(arr, key=lambda tpl: min_no_error(tpl[1]), reverse=True)
+        arr = sorted(
+            arr, key=lambda tpl: (min_no_error(tpl[1]), mean(tpl[1])), reverse=True
+        )
         return arr
 
 
