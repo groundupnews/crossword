@@ -1,4 +1,3 @@
-import sqlite3
 import unittest
 from cwutils import Grid, Slot
 import re
@@ -191,6 +190,7 @@ class TestMatching(unittest.TestCase):
         print(self.grid1.slots[1].words_freedom())
 
 
+# Claude added these tests
 class TestWordsFreedom(unittest.TestCase):
     """Hand-built grids and word lists (not the real dictionary) so every
     expected score can be verified exactly rather than just bounded."""

@@ -1,6 +1,6 @@
 """
-Nathan wrote this code by hand.
-It fetches the best words (answers) for a given slot.
+Nathan wrote this code by hand. Claude made an improvement (adding a tie-breaker, the mean, to the words_freedom result).
+It fetches the best words (answers) for a given slot (using the words_freedom method).
 """
 
 from fnmatch import fnmatch
