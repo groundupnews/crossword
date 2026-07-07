@@ -54,12 +54,15 @@ function computeSlots() {
   return out;
 }
 
+// Number shown in a cell (if it begins any slot), as a map index -> number.
 function cellNumbers(slots) {
   const m = {};
   for (const s of slots) m[s.start] = s.number;
   return m;
 }
 
+// Finds the slot running in `direction` that covers `cellIndex`, or
+// undefined if no such slot exists.
 function slotAt(cellIndex, direction, slots) {
   return slots.find(
     (s) => s.direction === direction && s.indices.includes(cellIndex)
@@ -70,6 +73,10 @@ function slotKey(slot) {
   return slot ? `${slot.number}${slot.direction}` : null;
 }
 
+// Finds the slot adjacent to the cursor's current slot, walking forward or
+// backward through the slots of the current direction. Falling off either
+// end wraps into the other direction's list, so Tab/Shift+Tab can cycle
+// through every slot in the puzzle. Returns null only if there are no slots.
 function nextSlot(forward, slots) {
   const dirSlots = slots.filter((s) => s.direction === state.direction);
   if (!dirSlots.length) return null;
@@ -99,6 +106,10 @@ function nextSlot(forward, slots) {
 }
 
 // --- Rendering ---
+// Rebuilds the whole SVG grid from scratch: cell rects, block styling,
+// cursor/active-slot highlighting, cell numbers, entered letters, and the
+// correct/wrong check indicators. Then refreshes the current-clue display
+// and the across/down clue list. Called after every state change.
 function render() {
   const slots = computeSlots();
   const numbers = cellNumbers(slots);
@@ -159,6 +170,9 @@ function render() {
   renderClueList(slots, active);
 }
 
+// Shows the active slot's key (e.g. "1A") and its clue text (looked up from
+// the server-supplied CW.clues map), or blanks both when there's no active
+// slot.
 function updateClueDisplay(active) {
   const slotEl = document.getElementById("current-slot");
   const clueEl = document.getElementById("clue-text");
@@ -172,6 +186,9 @@ function updateClueDisplay(active) {
   clueEl.textContent = CW.clues[key] || "";
 }
 
+// Renders the across/down clue lists, highlighting whichever slot is
+// currently active and flagging any slot the crossword itself didn't
+// supply a clue for. Clicking an entry jumps the cursor to that slot.
 function renderClueList(slots, active) {
   const across = document.getElementById("clue-list-across");
   const down = document.getElementById("clue-list-down");
@@ -204,6 +221,11 @@ function setCursor(i) {
   render();
 }
 
+// Moves the cursor to the next white cell along the current direction,
+// skipping over any blocks in the same row/column. Unlike the constructor's
+// advance(), this wraps: running off the end of a row/column continues
+// scanning subsequent rows/columns (wrapping the grid itself) until a white
+// cell is found, so typing an answer can run straight into the next slot.
 function advance() {
   const r = rowOf(state.cursor);
   const c = colOf(state.cursor);
@@ -236,6 +258,11 @@ function advance() {
   }
 }
 
+// Moves the cursor one cell back along the current direction, but only onto
+// an immediately adjacent white cell -- it does not skip blocks or wrap.
+// Backspace uses this to step back within the current slot; when it can't
+// move (already at the slot's start), the caller falls back to jumping to
+// the previous slot entirely.
 function retreat() {
   const r = rowOf(state.cursor);
   const c = colOf(state.cursor);
@@ -245,6 +272,9 @@ function retreat() {
     state.cursor = idx(r - 1, c);
 }
 
+// Clicking a white cell moves the cursor there; clicking the cell that's
+// already focused instead flips the typing direction. Clicks on blocks are
+// ignored (the solver never places or removes blocks).
 svg.addEventListener("click", (e) => {
   const target = e.target.closest(".cell");
   if (!target) return;
@@ -256,6 +286,13 @@ svg.addEventListener("click", (e) => {
   setCursor(i);
 });
 
+// Central keyboard/on-screen-keyboard handler shared by the physical
+// keydown listener and the mobile keyboard buttons. Handles letter entry
+// (with auto-advance and an auto-check once the grid is full), Backspace/
+// Delete/Space clearing and moving, arrow-key navigation that skips blocks
+// and wraps at grid edges, "." to flip direction, and Tab/Shift+Tab to jump
+// slots. Returns true if the key was handled (so callers know whether to
+// preventDefault), and does nothing once the puzzle is marked completed.
 function handleKey(key, shiftKey = false) {
   if (state.completed) return false;
   const r = rowOf(state.cursor);
@@ -407,6 +444,13 @@ document.querySelectorAll(".kb-key").forEach((btn) => {
 });
 
 // --- Check feature ---
+// Asks the server whether the current cells are correct for `mode`
+// ("letter"/"word"/"crossword") without ever revealing the right answer.
+// When markWrong is true (manual Check button use), incorrect cells get a
+// permanent "wrong" mark in state.checked (used for scoring) in addition to
+// the transient indicator; autoCheckIfComplete() passes markWrong=false
+// since it's just testing for a win, not penalizing mistakes twice. Returns
+// the raw per-cell results, or null on a network error.
 async function doCheck(mode, markWrong = true) {
   try {
     const resp = await fetch(CW.checkUrl, {
@@ -437,6 +481,8 @@ async function doCheck(mode, markWrong = true) {
   }
 }
 
+// True once every non-blocked cell holds a letter (regardless of whether
+// those letters are correct) -- the trigger condition for auto-checking.
 function isComplete() {
   for (let i = 0; i < rows * cols; i++) {
     if (!state.blocks.has(i) && !state.cells[i]) return false;
@@ -467,6 +513,9 @@ let _audioCtx = null;
 let _clickBuf = null;
 const CLICK_DUR = 0.035;
 
+// Lazily creates (on first use, so it's tied to a user gesture as browsers
+// require) a shared AudioContext plus a short buffer of white noise used as
+// the raw material for the keyboard click sound.
 function audioCtx() {
   if (!_audioCtx) {
     _audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
@@ -478,6 +527,9 @@ function audioCtx() {
   return _audioCtx;
 }
 
+// Plays a short filtered burst of the noise buffer -- a synthesized
+// mechanical-keyboard "clack" -- on each letter typed or backspaced, unless
+// the user has muted sound.
 function playClick() {
   if (!soundEnabled) return;
   const ctx = audioCtx();
@@ -496,6 +548,8 @@ function playClick() {
   source.stop(ctx.currentTime + CLICK_DUR);
 }
 
+// Plays a short three-note ascending triad as the completion fanfare when
+// the whole crossword is finished correctly.
 function playTada() {
   if (!soundEnabled) return;
   const ctx = audioCtx();
@@ -518,6 +572,12 @@ function playTada() {
   }
 }
 
+// Once every cell is filled, silently checks the whole grid. If it's all
+// correct, locks the puzzle (state.completed), stops the timer, plays the
+// fanfare, hides the now-pointless check/reveal/sound controls, and shows a
+// score based on the fraction of cells that were never marked wrong along
+// the way. Otherwise just tells the solver something's wrong, without
+// saying what -- they can keep editing.
 async function autoCheckIfComplete() {
   if (!isComplete()) return;
   const results = await doCheck("crossword", false);
@@ -538,6 +598,9 @@ async function autoCheckIfComplete() {
   }
 }
 
+// --- Check dropdown ---
+// Toggles the letter/word/crossword mode menu open/closed; picking an item
+// runs doCheck() in that mode and closes the menu.
 const checkBtn = document.getElementById("check-btn");
 const checkMenu = document.getElementById("check-menu");
 
@@ -555,6 +618,13 @@ checkMenu.addEventListener("click", (e) => {
 });
 
 // --- Reveal feature ---
+// After a confirmation prompt (reveal is destructive to the solver's own
+// score), asks the server for the correct letters for `mode` and fills them
+// in. Any cell that was blank or wrong gets permanently marked "wrong" in
+// state.checked before being overwritten, so revealing can't be used to
+// silently erase a mistake from the score; a correctly-guessed cell that's
+// merely re-revealed keeps its existing indicator state. Finishes by
+// re-running the completion check.
 async function doReveal(mode) {
   const labels = { letter: "this letter", word: "this word", crossword: "the entire crossword" };
   if (!confirm(`Reveal ${labels[mode]}?`)) return;
@@ -580,6 +650,7 @@ async function doReveal(mode) {
   } catch (_) {}
 }
 
+// --- Reveal dropdown --- (mirrors the check dropdown above, for doReveal())
 const revealBtn = document.getElementById("reveal-btn");
 const revealMenu = document.getElementById("reveal-menu");
 
@@ -596,11 +667,15 @@ revealMenu.addEventListener("click", (e) => {
   svg.focus();
 });
 
+// Clicking anywhere outside the two dropdowns closes both (the buttons'
+// own listeners stop propagation so their own clicks don't trigger this).
 document.addEventListener("click", () => {
   checkMenu.hidden = true;
   revealMenu.hidden = true;
 });
 
+// Home/End jump the cursor to the first/last grid cell, unless a text
+// input/textarea has focus (so it doesn't fight normal text editing).
 document.addEventListener("keydown", (e) => {
   if (e.key === "Home" || e.key === "End") {
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
@@ -619,6 +694,8 @@ document.getElementById("timer-toggle").addEventListener("click", () => {
   document.getElementById("timer-toggle").textContent = hidden ? "Show 🕐" : "Hide";
 });
 
+// Ticks once a second, formatting elapsed time as HH:MM:SS. Stopped by
+// autoCheckIfComplete() once the puzzle is solved.
 const timerInterval = setInterval(() => {
   timerSeconds++;
   const h = Math.floor(timerSeconds / 3600);
@@ -630,6 +707,8 @@ const timerInterval = setInterval(() => {
     String(s).padStart(2, "0");
 }, 1000);
 
+// Prev/next-slot buttons: on-screen equivalents of Shift+Tab / Tab, for
+// mouse/touch users navigating between slots.
 document.getElementById("prev-slot-btn").addEventListener("click", () => {
   const slots = computeSlots();
   const result = nextSlot(false, slots);
@@ -654,6 +733,9 @@ document.getElementById("next-slot-btn").addEventListener("click", () => {
   }
 });
 
+// Starts the solver on the first Across slot (if any) rather than cell 0,
+// so opening a puzzle with a leading block doesn't leave the cursor stuck
+// on a cell that isn't part of any slot.
 const _initSlots = computeSlots();
 const _firstAcross = _initSlots.find((s) => s.direction === ACROSS);
 if (_firstAcross) {

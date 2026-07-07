@@ -38,6 +38,9 @@ class CrosswordCreateView(PermissionRequiredMixin, CreateView):
     template_name = "crossword/add.html"
 
     def form_valid(self, form):
+        # Overridden instead of using the usual success_url: the redirect
+        # target (the edit page for this specific new pk) doesn't exist
+        # until the object is saved, so it can't be a static class attribute.
         self.object = form.save()
         return redirect("crossword_edit", pk=self.object.pk)
 
@@ -54,6 +57,8 @@ class CrosswordSelectView(ListView):
     ordering = ["-date_modified"]
 
     def get_queryset(self):
+        # Restricts the list to published crosswords for anyone without the
+        # generate permission; generators see everything, including drafts.
         qs = super().get_queryset()
         if not self.request.user.has_perm(PERM):
             qs = qs.published()
@@ -346,6 +351,11 @@ def fetch_clues(request, pk):
 @permission_required(PERM)
 @require_POST
 def crossword_delete(request, pk):
+    """Permanently delete a crossword and return to the list.
+
+    No server-side confirmation step -- the confirm() dialog on the delete
+    button in select.html is the only guard against an accidental click.
+    """
     crossword = get_object_or_404(Crossword, pk=pk)
     crossword.delete()
     return redirect("crossword_select")

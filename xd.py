@@ -9,7 +9,19 @@ from crossword.models import Clue, Crossword, Entry, Word
 
 
 def parse_xd(content):
-    """Parse an xd file string and return a dict of crossword data."""
+    """Parse an xd file string and return a dict of crossword data.
+
+    xd is a plain-text format: a block of "Key: value" headers, a blank
+    line, the grid itself (one line per row: a letter, "#" for a block, "."
+    or lowercase for an empty/circled white cell), then across/down clue
+    lines shaped "A1. clue text ~ ANSWER" / "D1. ...". The trailing "~
+    ANSWER" is parsed but discarded -- the grid above is the source of
+    truth for letters, so a mismatched or missing answer suffix is
+    harmless. Returns a dict with keys: name, authors, editors, copyright,
+    date, size ({"rows", "cols"}), grid (flat list of letters, "" for
+    blanks), blocked_out_squares, across_clues and down_clues (each a dict
+    of {number: clue text}).
+    """
     lines = content.split("\n")
     i = 0
 
@@ -72,7 +84,15 @@ def parse_xd(content):
 
 
 def render_xd(crossword):
-    """Render a Crossword instance as an xd format string."""
+    """Render a Crossword instance as an xd format string.
+
+    Mirrors parse_xd's format: headers (Author/Editor lines omitted when
+    blank), a blank line, the grid ("#" for blocks, "." for empty white
+    cells, otherwise the letter), then across clues followed by down
+    clues, each headed by a blank-line separator and only emitted at all
+    if there's at least one entry in that direction. Entries without a
+    clue still get a line, with the clue text left empty.
+    """
     lines = [f"Title: {crossword.name}"]
     if crossword.authors:
         lines.append(f"Author: {crossword.authors}")
@@ -122,7 +142,17 @@ def render_xd(crossword):
 
 
 def save_crossword_from_xd(data, replace=False):
-    """Save parsed xd data to the database. Returns the new Crossword."""
+    """Save parsed xd data (a dict from parse_xd) to the database.
+
+    Creates the Crossword row, then -- exactly like crossword_save's own
+    logic -- runs grid.slots() over the parsed grid and creates a Word,
+    optional Clue, and Entry for every complete slot; partial slots are
+    silently skipped. When replace=True and a crossword with the same name
+    already exists, that old crossword is deleted first, so re-importing
+    the same .xd file updates it in place rather than accumulating
+    duplicates. Falls back to the model's default_copyright() when the xd
+    file didn't specify one. Returns the new Crossword.
+    """
     num_rows = data["size"]["rows"]
     num_cols = data["size"]["cols"]
     cells = data["grid"]

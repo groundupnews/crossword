@@ -7,7 +7,14 @@ from fnmatch import fnmatch
 
 
 class Slot:
+    """One across or down run in a Grid: its position, length, the flat
+    cell indices it covers, and matching helpers against the grid's word
+    list. Constructed by Grid.calc_slots(); not usually built directly."""
+
     def _len_across(self):
+        """Counts cells rightward from self.start until the row wraps
+        (i % cols == 0) or a block is hit. Runs of length 1 aren't
+        filtered out here -- Grid.calc_slots() does that afterwards."""
         len = 1
         for i in range(self.start + 1, self.start + self.grid.cols):
             if i % self.grid.cols == 0 or self.grid.cells[i] == "#":
@@ -16,6 +23,8 @@ class Slot:
         return len
 
     def _len_down(self):
+        """Counts cells downward from self.start (stepping by a full row
+        width) until the grid ends or a block is hit."""
         len = 1
         for i in range(
             self.start + self.grid.cols, self.grid.rows * self.grid.cols, self.grid.cols
@@ -26,6 +35,9 @@ class Slot:
         return len
 
     def _set_cells(self):
+        """Populates self.cells with the flat indices of every cell in the
+        slot, in reading order, stepping by 1 (across) or by the grid's
+        column count (down)."""
         self.cells = []
         if self.dir == "A":
             step = 1
@@ -37,6 +49,9 @@ class Slot:
             self.cells.append(i)
 
     def __init__(self, grid, dir, id, row, col):
+        """Builds the slot starting at (row, col) in `grid`, running in
+        direction `dir` ("A" or "D"); computes its length and cell indices
+        immediately so every other method can assume they're ready."""
         self.grid = grid
         self.dir = dir
         self.id = id
@@ -54,6 +69,8 @@ class Slot:
         return self._len
 
     def __str__(self):
+        # Debug representation: id+direction, start cell, every subsequent
+        # cell index in the run, then the length in brackets.
         s = f"{self.id}{self.dir}: [{self.row}, {self.col}] ({self.start}"
         step = 1
         if self.dir == "D":
@@ -64,6 +81,11 @@ class Slot:
         return s
 
     def intersections(self):
+        """The perpendicular slot crossing each of this slot's cells, in
+        cell order (across slots return their crossing down slots, and
+        vice versa). A cell with no real crossing slot -- e.g. it sits in
+        an isolated single-cell run -- contributes nothing to the result,
+        so the returned list can be shorter than this slot's length."""
         result = []
         dir = "A" if self.dir == "D" else "D"
         for cell in self.cells:
@@ -73,6 +95,9 @@ class Slot:
         return result
 
     def intersecting_cell_index(self, intersection):
+        """Finds the shared grid cell between this slot and `intersection`,
+        returning (index within intersection.cells, index within
+        self.cells), or (-1, -1) if they don't actually cross."""
         for i in range(len(intersection.cells)):
             for j in range(len(self.cells)):
                 if intersection.cells[i] == self.cells[j]:
@@ -80,6 +105,8 @@ class Slot:
         return (-1, -1)
 
     def glob(self):
+        """The slot's current contents as an fnmatch pattern: filled cells
+        become their letter, blank cells ("-") become the "?" wildcard."""
         glob = [" "] * len(self)
         j = 0
         for i in self.cells:
@@ -89,12 +116,38 @@ class Slot:
         return "".join(glob)
 
     def words(self):
+        """Every word in the grid's word list matching this slot's current
+        glob pattern (i.e. the right length and consistent with any
+        letters already filled in)."""
         glob = self.glob()
         words = self.grid.words
         result = [w for w in words if fnmatch(w, glob)]
         return result
 
     def words_freedom(self):
+        """Ranks this slot's candidate words (from words()) by how much
+        freedom each leaves in its crossing slots, most promising first.
+
+        For every candidate and every crossing slot that still has an
+        unresolved (blank) intersecting cell, computes how many
+        dictionary words of the right length could still fill that
+        crossing if the candidate were placed -- already-filled crossings,
+        and cells with no real crossing slot, are skipped entirely, so a
+        candidate can end up with an empty score list. Results are
+        cached per crossing pattern (glob_dict) since many candidates
+        produce the same crossing pattern.
+
+        Candidates are sorted by their worst (minimum) crossing score
+        first, so a word that's fine everywhere except one badly
+        constrained crossing loses to one that's evenly okay; the mean of
+        all crossing scores breaks ties between candidates with the same
+        worst score. A candidate with no scores at all (fully resolved
+        slot, or no crossings exist) sorts by 0 for both, which just
+        preserves words()' original order among such candidates.
+
+        Returns a list of (word, scores) tuples. See fetch_algorirthm.md
+        for the original pseudocode this replaced.
+        """
         def min_no_error(lst):
             try:
                 return min(lst)
@@ -133,9 +186,17 @@ class Slot:
 
 
 class Grid:
-    words = []
+    """A crossword grid parsed from a plain-text layout, with its numbered
+    Slots and (optionally) a word list to match candidates against."""
+
+    words = []  # fallback when __init__ isn't given a word list
 
     def __init__(self, string: str, words=None):
+        """Parses `string` (one grid row per line; "#" for a block, "-" for
+        a blank white cell, A-Z for a filled cell) into a flat cell list,
+        infers rows/cols from the line breaks and longest line, and
+        computes the grid's numbered slots. `words` is the dictionary
+        words() and words_freedom() will match candidates against."""
         if words:
             self.words = words
         self.cells = []
@@ -158,10 +219,12 @@ class Grid:
         )
 
     def _I(self, r: int, c: int):
+        """Flat cell index for (row, col), asserting both are in bounds."""
         assert r >= 0 and r < self.rows and c >= 0 and c < self.cols
         return r * self.cols + c
 
     def __str__(self):
+        # Renders the grid back out as one line of cell characters per row.
         result = ""
         for r in range(self.rows):
             for c in range(self.cols):
@@ -170,7 +233,26 @@ class Grid:
         return result[:-1]
 
     def calc_slots(self):
+        """Builds every Slot in the grid, numbered and ordered the way
+        Grid.__init__ expects (see the sort key there: across slots first,
+        then down, each ordered by id).
 
+        Scans cells in row-major order. A slot is started at a cell
+        whenever there's no white cell immediately to its left (across) or
+        above it (down) -- edges of the grid count as "no white cell"
+        there, same as a block would. Unlike grid.py's slots(), this does
+        not check whether the run is actually longer than one cell before
+        creating the Slot; instead every candidate start gets a Slot
+        object, and the final list comprehension drops any whose computed
+        length (via Slot.__len__) turns out to be 1. A cell that starts
+        both an across and a down slot shares one id between them, exactly
+        as standard crossword numbering requires.
+        """
+
+        # Records that cell (r, c) starts a slot in direction `dir`, using
+        # the number not yet incremented for this cell. inc_slot_num flags
+        # that at least one slot started here, so the outer loop bumps
+        # slot_num once per cell rather than once per direction.
         def push_slot(dir, r, c):
             nonlocal inc_slot_num
             nonlocal slots
@@ -199,6 +281,9 @@ class Grid:
         return [slot for slot in slots if len(slot) > 1]
 
     def slot_for_cell(self, dir, cell):
+        """The slot running in `dir` that covers flat cell index `cell`,
+        or None if there isn't one (e.g. `cell` is blocked, or its run in
+        that direction is only one cell long and so isn't a real slot)."""
         for slot in self.slots:
             if slot.dir == dir and cell in slot.cells:
                 return slot

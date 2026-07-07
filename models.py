@@ -12,6 +12,9 @@ uppercase_az = RegexValidator(r"^[A-Z]+$", "Text must be uppercase A-Z only.")
 
 
 class Word(models.Model):
+    """A dictionary entry: one crossword answer string (which may itself be
+    a multi-word phrase, stored with no spaces) available to fill a slot."""
+
     # Claude: Why is the max_length set to 64?
     # Claude response: It's a safe ceiling for crossword answers. The largest standard
     # grids are 21x21 (NYT Sunday), so the longest possible answer is 21 letters. 64
@@ -30,6 +33,10 @@ class Word(models.Model):
     date_modified = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
+        # full_clean() runs field validators (including uppercase_az) before
+        # every save, not just form-bound saves, so a Word created directly
+        # in code (e.g. from crossword_save or an .xd import) can't bypass
+        # the uppercase-A-Z rule the way skipping full_clean() would allow.
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -38,6 +45,9 @@ class Word(models.Model):
 
 
 class Clue(models.Model):
+    """One phrasing of a clue for a Word. A word may have several clues
+    (from different crosswords/setters); (word, clue text) must be unique."""
+
     text = models.ForeignKey(Word, on_delete=models.CASCADE, related_name="clues")
     clue = models.TextField()
     source_crossword = models.ForeignKey(
@@ -51,6 +61,8 @@ class Clue(models.Model):
     date_modified = models.DateTimeField(auto_now=True)
 
     class Meta:
+        # Prevents the exact same clue text being stored twice for one word,
+        # while still allowing several distinct clues per word.
         constraints = [
             models.UniqueConstraint(fields=["text", "clue"], name="unique_text_clue"),
         ]
@@ -60,15 +72,24 @@ class Clue(models.Model):
 
 
 def default_copyright():
+    """Default value for Crossword.copyright, evaluated at save time (not
+    import time) so the year is always current for newly created puzzles."""
     return f"(C) {timezone.now().year} GroundUp News"
 
 
 class CrosswordQuerySet(models.QuerySet):
     def published(self):
+        """Crosswords with a publication datetime that has already passed.
+        Used to filter what non-generator users are allowed to see."""
         return self.filter(published__isnull=False, published__lte=timezone.now())
 
 
 class Crossword(models.Model):
+    """A crossword puzzle: its dimensions, the block/letter grid (the
+    source of truth -- see `cells` below), setter metadata, and publication
+    status. `Entry` rows are a derived index over this grid's complete
+    slots, not independent data."""
+
     name = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True)
     authors = models.CharField(max_length=200, blank=True)
@@ -89,9 +110,13 @@ class Crossword(models.Model):
         permissions = [("can_generate_crosswords", "Can generate crosswords")]
 
     def get_absolute_url(self):
+        # Used by Django admin's "View on site" link (CrosswordAdmin sets
+        # view_on_site = True) as well as anywhere else Django needs a
+        # canonical URL for the object.
         return reverse("crossword_solve", args=[self.pk])
 
     def is_published(self):
+        """True once `published` is set and that moment has passed."""
         return self.published is not None and self.published <= timezone.now()
 
     def __str__(self):
@@ -116,6 +141,11 @@ class Crossword(models.Model):
 # validation method on Crossword that checks consistency, but not a reason to redesign.
 
 class Entry(models.Model):
+    """A single numbered slot (crossword, number, direction) in a completed
+    grid: which Word fills it and, optionally, which Clue is attached.
+    Entries are derived from `Crossword.cells` on every save -- see
+    grid.slots() and views.crossword_save -- not edited directly."""
+
     ACROSS = "A"
     DOWN = "D"
     DIRECTION_CHOICES = [(ACROSS, "Across"), (DOWN, "Down")]
@@ -131,6 +161,10 @@ class Entry(models.Model):
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
 
     class Meta:
+        # A given slot (number + direction) in a given crossword can only
+        # ever hold one word at a time -- this is what makes
+        # Entry.objects.update_or_create(crossword=, number=, direction=)
+        # in crossword_save() safe to call repeatedly.
         constraints = [
             models.UniqueConstraint(
                 fields=["crossword", "number", "direction"],

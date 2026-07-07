@@ -18,6 +18,8 @@ DOWN = "D"
 
 @dataclass(frozen=True)
 class Slot:
+    """A single numbered across or down run of white cells."""
+
     number: int
     direction: str  # ACROSS or DOWN
     start: int  # cell index of the first cell
@@ -25,12 +27,15 @@ class Slot:
 
     @property
     def length(self) -> int:
+        """Number of cells the slot covers."""
         return len(self.indices)
 
     def letters(self, cells: list[str]) -> str:
+        """The slot's current contents read in order, blanks included as ''."""
         return "".join(cells[i] for i in self.indices)
 
     def is_complete(self, cells: list[str]) -> bool:
+        """True if every cell in the slot holds a letter (none are blank)."""
         # Claude: What does 'all' do?
         # Claude response: all(iterable) is a Python built-in that returns True if every
         # element in the iterable is truthy, False if any element is falsy. Here cells[i]
@@ -40,10 +45,21 @@ class Slot:
 
 
 def slots(num_rows: int, num_cols: int, blocked_out_squares, cells) -> list[Slot]:
-    """Return the numbered slots for the grid, in numbering order."""
+    """Return the numbered slots for the grid, in numbering order.
+
+    Scans cells in row-major (reading) order. A cell starts a new number if
+    it's white and either starts an across run (no white cell to its left,
+    a white cell to its right) or a down run (no white cell above, a white
+    cell below) -- standard crossword numbering convention. A cell that
+    starts both gets one number shared by both the across and down slot.
+    Runs of length 1 don't count as slots at all.
+    """
     blocked = set(blocked_out_squares)
 
     def white(row: int, col: int) -> bool:
+        """True if (row, col) is on the grid and not blocked. Off-grid
+        coordinates count as not-white, so edge cells correctly look like
+        they have no neighbour beyond the border."""
         if not (0 <= row < num_rows and 0 <= col < num_cols):
             return False
         return (row * num_cols + col) not in blocked

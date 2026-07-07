@@ -6,11 +6,19 @@ WORD_RE = re.compile(r"^[A-Z]+$")
 
 
 def get_words(path="british-english"):
+    """Loads the real dictionary word list, uppercased, keeping only
+    entries that are pure A-Z (so hyphenated/apostrophe'd dictionary
+    entries are excluded -- they'd never match a crossword slot anyway)."""
     with open(path, encoding="utf-8") as f:
         return [word for line in f if WORD_RE.match(word := line.strip().upper())]
 
 
 class TestGrid(unittest.TestCase):
+    """Tests Grid parsing and slot geometry using two same-shaped grids:
+    cw1 has real letters, cw2 has the identical block pattern but blank
+    cells -- so any test that should be content-independent (e.g. the
+    slots themselves) is checked as identical across both."""
+
     cw1 = """
 #BIB#
 BIERS
@@ -32,6 +40,9 @@ OGLED
         self.grid2 = Grid(self.cw2, get_words())
 
     def test_grid(self):
+        # Both grids share the dictionary and the same dimensions, but
+        # aren't equal as Slot objects (different Grid instances), even
+        # though their geometry matches -- see test_slots below for that.
         self.assertEqual(self.grid1.rows, 5)
         self.assertEqual(self.grid1.cols, 5)
         self.assertGreater(len(self.grid1.words), 1000)
@@ -41,6 +52,13 @@ OGLED
         self.assertNotEqual(self.grid1.slots, self.grid2.slots)
 
     def test_slots(self):
+        # Walks every slot cwutils finds in cw1, checking its id,
+        # direction, start position and length against the puzzle's known
+        # geometry (hand-derived from the cw1 layout above) -- this is
+        # what pins down calc_slots()'s numbering and ordering behaviour.
+        # The final loop then re-checks the same geometry against cw2,
+        # confirming slot detection only depends on the block pattern, not
+        # on which letters (if any) fill the white cells.
         self.assertEqual(self.grid1.slots[0].id, 1)
         self.assertEqual(self.grid1.slots[0].dir, "A")
         self.assertEqual(self.grid1.slots[0].row, 0)
@@ -135,6 +153,9 @@ OGLED
             self.assertEqual(t[0].cells, t[1].cells)
 
     def test_intersection_slots(self):
+        # Checks intersections() returns the correct crossing slots (in
+        # cell order) and that intersecting_cell_index() correctly locates
+        # the shared cell within each pair of crossing slots.
         intersections = self.grid1.slots[0].intersections()
         self.assertEqual(len(intersections), 3)
         self.assertEqual(intersections[0].dir, "D")
@@ -153,6 +174,10 @@ OGLED
 
 
 class TestMatching(unittest.TestCase):
+    """Tests glob()/words() against the real dictionary, using a grid with
+    a couple of cells pre-filled so the glob pattern has fixed letters as
+    well as wildcards."""
+
     cw1 = """
 #---#
 --A-Y
@@ -165,6 +190,8 @@ class TestMatching(unittest.TestCase):
         self.grid1 = Grid(self.cw1, get_words())
 
     def test_glob(self):
+        # The blank cells in each slot become "?", and the two pre-filled
+        # letters ("A" and "Y") pass straight through into the pattern.
         slot = self.grid1.slot_for_cell("A", 5)
         self.assertEqual(type(slot), Slot)
         if slot:
@@ -177,6 +204,9 @@ class TestMatching(unittest.TestCase):
             self.assertEqual(glob, "?A")
 
     def test_match(self):
+        # Only checks the match count is "plausibly large" against the
+        # real dictionary, not an exact word list -- that's covered by the
+        # hand-built fixtures in TestWordsFreedom below.
         slot = self.grid1.slot_for_cell("A", 5)
         if slot:
             words = slot.words()
@@ -187,6 +217,10 @@ class TestMatching(unittest.TestCase):
             self.assertGreater(len(words), 15)
 
     def test_words_freedom(self):
+        # No assertion here -- this just exercises words_freedom() against
+        # the real dictionary and prints its ranking for manual
+        # inspection. The exactly-verified behaviour lives in
+        # TestWordsFreedom below.
         print(self.grid1.slots[1].words_freedom())
 
 
@@ -234,6 +268,8 @@ class TestWordsFreedom(unittest.TestCase):
         self.assertEqual(across.words_freedom(), [("CAT", []), ("DOG", [])])
 
     def test_no_matching_words_returns_empty(self):
+        # When words() itself finds nothing, words_freedom() should return
+        # an empty list rather than erroring or returning a placeholder.
         grid = Grid("\nA-\n--\n", ["ZOO"])  # wrong length, doesn't match "A?"
         across = grid.slot_for_cell("A", 0)
 

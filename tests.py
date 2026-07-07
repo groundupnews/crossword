@@ -23,6 +23,8 @@ def make_user_with_perm(client, username="testuser"):
 
 
 def make_crossword(**kwargs):
+    """Creates a Crossword with sensible minimal defaults (a blank 1x3
+    grid), overridable via kwargs. The default shape matches XD_1ROW."""
     defaults = dict(num_rows=1, num_cols=3, cells=["", "", ""], blocked_out_squares=[])
     defaults.update(kwargs)
     return Crossword.objects.create(**defaults)
@@ -60,6 +62,10 @@ XD_3X3 = (
 # ---------------------------------------------------------------------------
 
 class GridSlotTest(TestCase):
+    """Tests for grid.slots(): detection, numbering, and completeness.
+    generator.js and solver.js each hand-port this same logic client-side
+    and must stay in sync with it."""
+
     def test_single_open_row(self):
         # A 1-row, 3-column grid with no blocked squares should produce exactly
         # one slot: 1 Across covering all three cells (indices 0, 1, 2).
@@ -124,6 +130,9 @@ class GridSlotTest(TestCase):
 # ---------------------------------------------------------------------------
 
 class WordModelTest(TestCase):
+    """Tests for Word's uppercase-A-Z-only validation, enforced by
+    full_clean() in Word.save() rather than left to forms/admin alone."""
+
     def test_valid_word_saves(self):
         # A word containing only uppercase A-Z letters should save without error.
         # Uses a synthetic string not present in the loaded wordlist.
@@ -148,6 +157,9 @@ class WordModelTest(TestCase):
 # ---------------------------------------------------------------------------
 
 class CrosswordCreateViewTest(TestCase):
+    """Tests for the "new crossword" form/view (CrosswordCreateForm +
+    CrosswordCreateView)."""
+
     def setUp(self):
         make_user_with_perm(self.client)
 
@@ -167,11 +179,15 @@ class CrosswordCreateViewTest(TestCase):
 
 
 class CrosswordSaveViewTest(TestCase):
+    """Tests for crossword_save(): deriving Word/Clue/Entry rows from the
+    posted grid, per the save-payload contract in crossword_spec.md."""
+
     def setUp(self):
         make_user_with_perm(self.client)
         self.cw = make_crossword()
 
     def _save(self, payload):
+        """POSTs `payload` as JSON to this test's crossword's save URL."""
         return self.client.post(
             reverse("crossword_save", args=[self.cw.pk]),
             data=json.dumps(payload),
@@ -313,6 +329,10 @@ class CrosswordSaveViewTest(TestCase):
 # ---------------------------------------------------------------------------
 
 class FetchAnswersViewTest(TestCase):
+    """Tests for fetch_answers(): glob matching, pagination, and the
+    exclude_from_recommendations filter. Ranking by words_freedom() itself
+    is covered separately in cwutils/test.py."""
+
     def setUp(self):
         make_user_with_perm(self.client)
 
@@ -364,6 +384,9 @@ class FetchAnswersViewTest(TestCase):
         self.assertEqual(page2["answers"], [f"ZZZ{c}" for c in letters[20:]])
 
     def test_excludes_words_flagged_exclude_from_recommendations(self):
+        # A word flagged exclude_from_recommendations should never be
+        # offered as a fetch-answers candidate, even though it still
+        # matches the glob pattern.
         Word.objects.create(text="ZZZA")
         Word.objects.create(text="ZZZB", exclude_from_recommendations=True)
         cw = make_crossword(num_cols=4, cells=["", "", "", ""])
@@ -417,7 +440,11 @@ class PermissionTest(TestCase):
 # ---------------------------------------------------------------------------
 
 class ParseXdTest(TestCase):
+    """Tests for parse_xd(): the xd-format header/grid/clue parser."""
+
     def test_headers_parsed(self):
+        # Title/Author/Editor/Copyright headers are read into their
+        # corresponding dict keys.
         data = parse_xd(XD_1ROW)
         self.assertEqual(data["name"], "Test Puzzle")
         self.assertEqual(data["authors"], "Test Author")
@@ -425,20 +452,26 @@ class ParseXdTest(TestCase):
         self.assertEqual(data["copyright"], "2022 Test Co")
 
     def test_missing_optional_headers_are_empty(self):
+        # Headers other than Title are optional; when absent, their dict
+        # values default to "" rather than being missing or None.
         data = parse_xd("Title: X\n\nCAT\n")
         self.assertEqual(data["authors"], "")
         self.assertEqual(data["editors"], "")
         self.assertEqual(data["copyright"], "")
 
     def test_grid_dimensions(self):
+        # size is derived from the grid block, not stated in a header.
         data = parse_xd(XD_1ROW)
         self.assertEqual(data["size"], {"rows": 1, "cols": 3})
 
     def test_grid_dimensions_2d(self):
+        # Dimensions are read correctly for a grid with more than one row.
         data = parse_xd(XD_3X3)
         self.assertEqual(data["size"], {"rows": 3, "cols": 3})
 
     def test_cells_from_letters(self):
+        # An all-letters grid row parses straight into uppercase cells with
+        # no blocked squares.
         data = parse_xd(XD_1ROW)
         self.assertEqual(data["grid"], ["C", "A", "T"])
         self.assertEqual(data["blocked_out_squares"], [])
@@ -463,11 +496,15 @@ class ParseXdTest(TestCase):
         self.assertEqual(data["grid"], ["C", "A", "T"])
 
     def test_across_clue_parsed(self):
+        # An "A1. ..." line is parsed into across_clues keyed by number;
+        # with no "D..." lines present, down_clues stays empty.
         data = parse_xd(XD_1ROW)
         self.assertEqual(data["across_clues"], {1: "A feline"})
         self.assertEqual(data["down_clues"], {})
 
     def test_across_and_down_clues_parsed(self):
+        # Across and down clues are parsed independently even when they
+        # share the same number (both are "1" here, for the shared cell).
         data = parse_xd(XD_3X3)
         self.assertEqual(data["across_clues"], {1: "Feline"})
         self.assertEqual(data["down_clues"], {1: "Feline"})
@@ -489,6 +526,9 @@ class ParseXdTest(TestCase):
 # ---------------------------------------------------------------------------
 
 class RenderXdTest(TestCase):
+    """Tests for render_xd(): the counterpart to ParseXdTest, checking the
+    xd text it produces from a Crossword instance."""
+
     def _cw_with_entry(self, **kwargs):
         """1×3 crossword with a single 1A entry, clue 'A feline'."""
         cw = make_crossword(name="Test Puzzle", cells=["C", "A", "T"], **kwargs)
@@ -498,6 +538,7 @@ class RenderXdTest(TestCase):
         return cw
 
     def test_title_header(self):
+        # Title is always emitted, unlike the optional headers below.
         out = render_xd(self._cw_with_entry())
         self.assertIn("Title: Test Puzzle", out)
 
@@ -506,6 +547,8 @@ class RenderXdTest(TestCase):
         self.assertIn("Author: A Setter", out)
 
     def test_author_header_absent_when_blank(self):
+        # A blank authors field should omit the header line entirely,
+        # not emit "Author: ".
         out = render_xd(self._cw_with_entry(authors=""))
         self.assertNotIn("Author:", out)
 
@@ -514,10 +557,14 @@ class RenderXdTest(TestCase):
         self.assertIn("Editor: An Editor", out)
 
     def test_editor_header_absent_when_blank(self):
+        # Mirrors test_author_header_absent_when_blank for the Editor header.
         out = render_xd(self._cw_with_entry(editors=""))
         self.assertNotIn("Editor:", out)
 
     def test_copyright_header(self):
+        # Unlike Author/Editor, Copyright is unconditional (the model
+        # always has a value via default_copyright()), so it's covered
+        # here rather than with a present/absent pair.
         out = render_xd(self._cw_with_entry(copyright="2022 Test"))
         self.assertIn("Copyright: 2022 Test", out)
 
@@ -531,6 +578,8 @@ class RenderXdTest(TestCase):
         self.assertIn("C#T", out)
 
     def test_empty_white_cell_renders_as_dot(self):
+        # A cell that's white but has no letter yet (partial slot) renders
+        # as "." -- distinct from "#" for an actual block.
         cw = make_crossword(cells=["", "", ""])
         out = render_xd(cw)
         self.assertIn("...", out)
@@ -560,6 +609,9 @@ class RenderXdTest(TestCase):
         self.assertIn("A1.  ~ CAT", out)
 
     def test_across_before_down(self):
+        # The clues section always lists every across clue before any down
+        # clue, regardless of entry creation order (both are created with
+        # the same number 1 here).
         cw = make_crossword(
             num_rows=3, num_cols=3,
             cells=["C", "A", "T", "A", "", "", "T", "", ""],
@@ -578,6 +630,9 @@ class RenderXdTest(TestCase):
 # ---------------------------------------------------------------------------
 
 class SaveCrosswordFromXdTest(TestCase):
+    """Tests for save_crossword_from_xd(): building a Crossword (and its
+    Word/Clue/Entry rows) from an already-parsed xd dict."""
+
     XD_DATA = {
         "name": "Test",
         "authors": "Author",
@@ -591,6 +646,8 @@ class SaveCrosswordFromXdTest(TestCase):
     }
 
     def test_creates_crossword_with_correct_fields(self):
+        # The straightforward, one-to-one fields (name/authors/editors/
+        # dimensions/cells) are copied over from the parsed dict as-is.
         cw = save_crossword_from_xd(self.XD_DATA)
         self.assertEqual(cw.name, "Test")
         self.assertEqual(cw.authors, "Author")
@@ -600,12 +657,16 @@ class SaveCrosswordFromXdTest(TestCase):
         self.assertEqual(cw.cells, ["C", "A", "T"])
 
     def test_creates_word_entry_and_clue(self):
+        # A complete slot gets a real Word/Clue/Entry chain, same as a
+        # normal save from the edit screen would produce.
         cw = save_crossword_from_xd(self.XD_DATA)
         entry = Entry.objects.get(crossword=cw, number=1, direction=Entry.ACROSS)
         self.assertEqual(entry.word.text, "CAT")
         self.assertEqual(entry.clue.clue, "A feline")
 
     def test_partial_slot_produces_no_entry(self):
+        # Mirrors crossword_save()'s own rule: an incomplete slot is kept
+        # in `cells` but produces no Entry.
         data = {**self.XD_DATA, "grid": ["C", "", "T"]}
         cw = save_crossword_from_xd(data)
         self.assertFalse(Entry.objects.filter(crossword=cw).exists())
@@ -622,12 +683,16 @@ class SaveCrosswordFromXdTest(TestCase):
         self.assertIn("GroundUp News", cw.copyright)
 
     def test_replace_deletes_existing_crossword(self):
+        # replace=True deletes any same-named crossword before creating the
+        # new one, so re-saving from the same xd file updates in place.
         cw1 = save_crossword_from_xd(self.XD_DATA)
         cw2 = save_crossword_from_xd(self.XD_DATA, replace=True)
         self.assertFalse(Crossword.objects.filter(pk=cw1.pk).exists())
         self.assertTrue(Crossword.objects.filter(pk=cw2.pk).exists())
 
     def test_no_replace_keeps_existing_crossword(self):
+        # Without replace=True (the default), saving the same data twice
+        # creates two separate crosswords rather than colliding.
         save_crossword_from_xd(self.XD_DATA)
         save_crossword_from_xd(self.XD_DATA, replace=False)
         self.assertEqual(Crossword.objects.filter(name="Test").count(), 2)
@@ -638,6 +703,9 @@ class SaveCrosswordFromXdTest(TestCase):
 # ---------------------------------------------------------------------------
 
 class CrosswordXdExportViewTest(TestCase):
+    """Tests for crossword_xd(): the .xd download endpoint, which is
+    intentionally open to everyone regardless of login or permission."""
+
     def setUp(self):
         self.cw = make_crossword(name="My Puzzle", cells=["C", "A", "T"])
         word, _ = Word.objects.get_or_create(text="CAT")
@@ -666,12 +734,16 @@ class CrosswordXdExportViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_user_without_permission_can_export(self):
+        # Mirrors test_anonymous_user_can_export: even a logged-in user
+        # without can_generate_crosswords can still export.
         User.objects.create_user(username="noperm", password="testpass")
         self.client.login(username="noperm", password="testpass")
         response = self.client.get(reverse("crossword_xd", args=[self.cw.pk]))
         self.assertEqual(response.status_code, 200)
 
     def test_response_contains_title_header(self):
+        # Sanity check that the response body is genuinely render_xd()'s
+        # output, not just the right status/headers.
         body = self.client.get(reverse("crossword_xd", args=[self.cw.pk])).content.decode()
         self.assertIn("Title: My Puzzle", body)
 
@@ -685,10 +757,14 @@ class CrosswordXdExportViewTest(TestCase):
 # ---------------------------------------------------------------------------
 
 class CrosswordXdImportViewTest(TestCase):
+    """Tests for crossword_import(): the .xd upload endpoint, gated behind
+    can_generate_crosswords."""
+
     def setUp(self):
         make_user_with_perm(self.client)
 
     def _import(self, body=XD_1ROW):
+        """POSTs `body` as a raw .xd file to the import endpoint."""
         return self.client.post(
             reverse("crossword_import"),
             data=body,
@@ -711,6 +787,8 @@ class CrosswordXdImportViewTest(TestCase):
         self.assertEqual(entry.clue.clue, "A feline")
 
     def test_returns_redirect_url_to_edit_screen(self):
+        # The client-side import flow (select.html) navigates to whatever
+        # URL this response carries, straight into the edit screen.
         response = self._import()
         cw = Crossword.objects.get()
         self.assertEqual(
@@ -728,6 +806,8 @@ class CrosswordXdImportViewTest(TestCase):
         self.assertNotEqual(Crossword.objects.get().pk, first_pk)
 
     def test_empty_body_returns_400(self):
+        # An empty upload parses to a zero-row grid, which the view treats
+        # as invalid input rather than silently creating an empty puzzle.
         response = self._import("")
         self.assertEqual(response.status_code, 400)
         self.assertFalse(Crossword.objects.exists())
@@ -739,6 +819,8 @@ class CrosswordXdImportViewTest(TestCase):
         self.assertFalse(Crossword.objects.exists())
 
     def test_user_without_permission_cannot_import(self):
+        # Unlike export, import is a write action and requires the
+        # generate permission even when logged in.
         self.client.logout()
         User.objects.create_user(username="noperm", password="testpass")
         self.client.login(username="noperm", password="testpass")
@@ -752,6 +834,9 @@ class CrosswordXdImportViewTest(TestCase):
 # ---------------------------------------------------------------------------
 
 class XdRoundTripTest(TestCase):
+    """Parse -> save -> render -> re-parse: checks parse_xd and render_xd
+    agree with each other, beyond what testing each in isolation shows."""
+
     def test_grid_survives_round_trip(self):
         # After parsing, saving, and re-rendering, the re-parsed grid and blocked
         # squares should match the originally parsed values.
@@ -766,6 +851,7 @@ class XdRoundTripTest(TestCase):
         )
 
     def test_clues_survive_round_trip(self):
+        # Mirrors test_grid_survives_round_trip for the clue dicts.
         original = parse_xd(XD_3X3)
         cw = save_crossword_from_xd(original)
         rendered = render_xd(cw)

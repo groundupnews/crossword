@@ -64,12 +64,21 @@ function cellNumbers(slots) {
   return m;
 }
 
+// Finds the slot running in `direction` that covers `cellIndex`, or
+// undefined if no such slot exists (e.g. cursor is on a blocked cell, or on
+// an isolated single white cell that isn't a slot at all).
 function slotAt(cellIndex, direction, slots) {
   return slots.find(
     (s) => s.direction === direction && s.indices.includes(cellIndex)
   );
 }
 
+// Finds the slot adjacent to the cursor's current slot, walking forward or
+// backward through the slots of the current direction. Falling off either
+// end of the current direction wraps into the other direction's list (last
+// Across -> first Down when moving forward, and the mirror image in
+// reverse), so Tab/Shift+Tab can cycle through every slot in the grid.
+// Returns null only when the grid has no slots at all.
 function nextSlot(forward, slots) {
   const dirSlots = slots.filter(s => s.direction === state.direction);
   if (!dirSlots.length) return null;
@@ -99,6 +108,12 @@ function nextSlot(forward, slots) {
 }
 
 // --- Rendering ---
+// Rebuilds the whole SVG grid from scratch -- cell rects, block styling,
+// cursor/active-slot highlighting, cell numbers and entered letters -- then
+// refreshes every dependent panel (clue entry box, duplicate-answer warning,
+// completion indicator, across/down clue list). Called after every state
+// change; the grid is small enough that a full rebuild is simpler than
+// tracking incremental DOM updates.
 function render() {
   const slots = computeSlots();
   const numbers = cellNumbers(slots);
@@ -151,6 +166,10 @@ function slotKey(slot) {
   return slot ? `${slot.number}${slot.direction}` : null;
 }
 
+// Syncs the "Clue for <slot>" label and text input to the active slot: shows
+// its key (e.g. "1A") and any clue text already recorded for it, or blanks
+// and disables the input when there's no active slot (cursor on a block or
+// an unnumbered cell).
 function updateClueEntry(active) {
   const label = document.getElementById("current-slot");
   const input = document.getElementById("clue-input");
@@ -165,6 +184,10 @@ function updateClueEntry(active) {
   input.value = state.clues[slotKey(active)] || "";
 }
 
+// Keeps state.clues in sync with the clue input as the user types, keyed to
+// whichever slot is currently active. Only the clue list and completion
+// indicator are refreshed here (not the full render()), so the input keeps
+// focus and the caret position while typing.
 document.getElementById("clue-input").addEventListener("input", (e) => {
   const slots = computeSlots();
   const active = slotAt(state.cursor, state.direction, slots);
@@ -204,6 +227,9 @@ function renderClueList(slots) {
 }
 
 // --- Completion indicator ---
+// Shows a check mark only when every slot is fully lettered AND every slot
+// has a clue attached; otherwise shows a cross. Reflects live in-memory
+// state, not the last save.
 function updateCompletionIndicator(slots) {
   const el = document.getElementById("completion-indicator");
   const allComplete = slots.length > 0 && slots.every(s => s.indices.every(i => state.cells[i]));
@@ -214,6 +240,9 @@ function updateCompletionIndicator(slots) {
 }
 
 // --- Repeat-answer warning (non-blocking) ---
+// Flags any answer word that appears in more than one complete slot.
+// Informational only -- duplicate answers are allowed, the setter just gets
+// a heads-up so the repeat is deliberate rather than accidental.
 function updateWarning(slots) {
   const seen = {};
   for (const s of slots) {
@@ -242,6 +271,11 @@ function setCursor(i) {
   render();
 }
 
+// Moves the cursor one cell forward along the current direction, but only
+// onto an adjacent white cell. Unlike the solver's advance(), this never
+// skips blocks, wraps to another row/column, or jumps to the next slot --
+// the constructor needs to be able to stop right at a grid edge or block,
+// e.g. to place one next to the cursor.
 function advance() {
   const r = rowOf(state.cursor);
   const c = colOf(state.cursor);
@@ -252,6 +286,8 @@ function advance() {
     state.cursor = next;
 }
 
+// Mirror image of advance(): moves the cursor one cell backward along the
+// current direction, stopping (not moving) at a block or grid edge.
 function retreat() {
   const r = rowOf(state.cursor);
   const c = colOf(state.cursor);
@@ -261,6 +297,10 @@ function retreat() {
     state.cursor = idx(r - 1, c);
 }
 
+// Toggles cell `i` between white and blocked. Blocking a lettered cell wipes
+// its letter with no confirmation, per spec. When rotational symmetry
+// (CW.nytRules) is on, the same toggle is applied to the 180-degree-rotated
+// partner cell so the grid stays symmetric.
 function toggleBlock(i) {
   const partner = rows * cols - 1 - i;
   const willBlock = !state.blocks.has(i);
@@ -279,6 +319,9 @@ function toggleBlock(i) {
   document.getElementById("blocks-pct").textContent = pct + "% of cells blocked";
 }
 
+// Clicking a cell moves the cursor there. Clicking the cell that's already
+// focused instead flips the typing direction (Across/Down), matching the
+// common crossword-app convention for re-clicking the active cell.
 svg.addEventListener("click", (e) => {
   const target = e.target.closest(".cell");
   if (!target) return;
@@ -289,6 +332,11 @@ svg.addEventListener("click", (e) => {
   setCursor(i);
 });
 
+// Main grid keyboard handler: letters fill the current cell and advance,
+// Backspace/Delete clear the current cell (or retreat/advance over an
+// already-empty one), arrow keys move the cursor and wrap around the grid
+// edges, "." flips direction, Tab/Shift+Tab jump to the next/previous slot,
+// space toggles a block, and "[" / "]" trigger fetch-answers / fetch-clues.
 svg.addEventListener("keydown", (e) => {
   const r = rowOf(state.cursor);
   const c = colOf(state.cursor);
@@ -355,6 +403,9 @@ svg.addEventListener("keydown", (e) => {
 });
 
 // --- Publish status ---
+// Updates the "Published"/"Unpublished" status label and the Publish/
+// Unpublish button's label based on the published-datetime field: a
+// crossword counts as published once its stored datetime is in the past.
 function updatePublishStatus() {
   const val = document.getElementById("cw-published").value;
   const span = document.getElementById("publish-status");
@@ -365,12 +416,18 @@ function updatePublishStatus() {
   btn.textContent = isPublished ? "Unpublish" : "Publish";
 }
 
+// Formats the current moment as "YYYY-MM-DDTHH:mm" in local time, the value
+// format a <input type="datetime-local"> element expects.
 function nowLocalISO() {
   const d = new Date();
   const pad = n => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// A <input type="datetime-local"> value carries no timezone information, so
+// this appends the browser's own UTC offset to turn it into a
+// timezone-aware ISO 8601 string the server can parse unambiguously with
+// datetime.fromisoformat().
 function localISOWithOffset(localIsoStr) {
   const off = -new Date().getTimezoneOffset();
   const sign = off >= 0 ? "+" : "-";
@@ -380,6 +437,8 @@ function localISOWithOffset(localIsoStr) {
   return `${localIsoStr}:00${sign}${offH}:${offM}`;
 }
 
+// Publish/Unpublish button: publishing stamps the published field with the
+// current moment; unpublishing clears it back to blank.
 document.getElementById("publish-btn").addEventListener("click", () => {
   const input = document.getElementById("cw-published");
   const isPublished = input.value && new Date(input.value) <= new Date();
@@ -389,6 +448,11 @@ document.getElementById("publish-btn").addEventListener("click", () => {
 });
 
 // --- Save / JSON ---
+// Gathers the full grid state, metadata fields and clues into the save
+// payload described in crossword_spec.md, POSTs it to the server, and gives
+// brief textual feedback ("Saved" / "Save failed") on the button itself.
+// Also refreshes the publish status label and clears the dirty flag, since a
+// successful save means there's nothing left to lose on navigation.
 document.getElementById("save-btn").addEventListener("click", async () => {
   const body = {
     cells: state.cells,
@@ -415,11 +479,18 @@ document.getElementById("save-btn").addEventListener("click", async () => {
 });
 
 // --- Fetch answers / clues ---
+// The slot under the cursor in the current typing direction, or undefined if
+// the cursor isn't inside a slot. Shared entry point for both fetch actions.
 function activeSlot() {
   const slots = computeSlots();
   return slotAt(state.cursor, state.direction, slots);
 }
 
+// Renders a generic picklist into the results pane (used for both fetched
+// answers and fetched clues): a title, a list of clickable items -- each
+// wired to `onPick` -- and a "No matches" placeholder when the list is
+// empty. Resets/hides the pager; callers that need pagination re-show it
+// afterwards.
 function showResults(title, items, onPick) {
   const pane = document.getElementById("results-pane");
   const list = document.getElementById("results-list");
@@ -444,6 +515,10 @@ function showResults(title, items, onPick) {
 // buttons can re-fetch without redoing activeSlot().
 let answersQuery = null;
 
+// Fetches one page of ranked answer candidates for the slot recorded in
+// `answersQuery`, renders them into the results pane (picking a result fills
+// the slot's cells with that word), and updates the pager controls to
+// reflect the current/total page counts.
 async function loadAnswersPage(page) {
   const slot = answersQuery.slot;
   const resp = await fetch(CW.fetchAnswersUrl, {
@@ -477,6 +552,8 @@ async function loadAnswersPage(page) {
   }
 }
 
+// Entry point for the "Fetch answers" button / "[" shortcut: starts a fresh
+// paged query for the active slot and loads its first page.
 async function doFetchAnswers() {
   const slot = activeSlot();
   if (!slot) return;
@@ -491,6 +568,10 @@ document.getElementById("results-next").addEventListener("click", () => {
   if (answersQuery && answersQuery.page < answersQuery.totalPages) loadAnswersPage(answersQuery.page + 1);
 });
 
+// Entry point for the "Fetch clues" button / "]" shortcut: builds the
+// current word for the active slot (empty string if any cell is still
+// blank, so the server returns no matches for an incomplete answer) and
+// fetches matching clue text. Picking one sets the clue input directly.
 async function doFetchClues() {
   const slot = activeSlot();
   if (!slot) return;
@@ -509,6 +590,11 @@ async function doFetchClues() {
 document.getElementById("fetch-answers-btn").addEventListener("click", doFetchAnswers);
 document.getElementById("fetch-clues-btn").addEventListener("click", doFetchClues);
 
+// Global shortcuts that apply regardless of which element has focus:
+// Ctrl+S saves, Ctrl+G toggles focus between the clue input and the grid,
+// Escape dismisses the results pane, and Home/End jump the cursor to the
+// first/last cell (skipped while a text input/textarea has focus, so it
+// doesn't fight with normal text-editing behaviour).
 document.addEventListener("keydown", (e) => {
   if (e.key === "s" && e.ctrlKey) {
     e.preventDefault();
@@ -531,6 +617,8 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// Lets Tab/Shift+Tab move between slots even while the clue input has
+// focus, matching the grid's own Tab behaviour instead of leaving the input.
 document.getElementById("clue-input").addEventListener("keydown", (e) => {
   if (e.key === "Tab") {
     e.preventDefault();
@@ -544,6 +632,8 @@ document.getElementById("clue-input").addEventListener("keydown", (e) => {
   }
 });
 
+// Prev/next-slot buttons: on-screen equivalents of Shift+Tab / Tab, for
+// mouse/touch users navigating between slots.
 document.getElementById("prev-slot-btn").addEventListener("click", () => {
   const slots = computeSlots();
   const result = nextSlot(false, slots);
@@ -575,12 +665,18 @@ document.getElementById("blocks-pct").textContent =
   document.getElementById(id).addEventListener("input", markDirty);
 });
 
+// Triggers the browser's native "leave site?" confirmation on tab close/
+// reload when there are unsaved changes.
 window.addEventListener("beforeunload", (e) => {
   if (dirty) e.preventDefault();
 });
 
 let pendingHref = null;
 
+// Intercepts in-app link clicks while there are unsaved changes, and shows
+// the custom exit-confirmation modal instead of navigating immediately. The
+// clicked link's destination is stashed in pendingHref for exit-confirm to
+// use if the user chooses to leave anyway.
 document.addEventListener("click", (e) => {
   const link = e.target.closest("a");
   if (!link || !dirty) return;
