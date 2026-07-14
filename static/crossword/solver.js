@@ -495,46 +495,13 @@ document.getElementById("sound-btn").addEventListener("click", () => {
   document.getElementById("sound-btn").textContent = soundEnabled ? "🔊" : "🔇";
 });
 
-//let _audioCtx = null;
-//let _clickBuf = null;
-//const CLICK_DUR = 0.035;
 const click_sound = document.getElementById('click-sound');
+const tada_sound = document.getElementById('tada-sound');
 
-// Lazily creates (on first use, so it's tied to a user gesture as browsers
-// require) a shared AudioContext plus a short buffer of white noise used as
-// the raw material for the keyboard click sound.
-//function audioCtx() {
-//  if (!_audioCtx) {
-//    _audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-//    const buf = _audioCtx.createBuffer(1, Math.ceil(_audioCtx.sampleRate * CLICK_DUR), _audioCtx.sampleRate);
-//    const data = buf.getChannelData(0);
-//    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-//    _clickBuf = buf;
-//  }
-//  return _audioCtx;
-//}
-//
-// Plays a short filtered burst of the noise buffer -- a synthesized
-// mechanical-keyboard "clack" -- on each letter typed or backspaced, unless
-// the user has muted sound.
-//function playClick() {
-//  if (!soundEnabled) return;
-//  const ctx = audioCtx();
-//  const source = ctx.createBufferSource();
-//  source.buffer = _clickBuf;
-//  const filter = ctx.createBiquadFilter();
-//  filter.type = "lowpass";
-//  filter.frequency.value = 1200;
-//  const gain = ctx.createGain();
-//  gain.gain.setValueAtTime(0.5, ctx.currentTime);
-//  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + CLICK_DUR);
-//  source.connect(filter);
-//  filter.connect(gain);
-//  gain.connect(ctx.destination);
-//  source.start(ctx.currentTime);
-//  source.stop(ctx.currentTime + CLICK_DUR);
-//}
-
+// Plays the keyboard-click sound effect on each letter typed or backspaced,
+// unless the user has muted sound. Resets currentTime first so rapid
+// keystrokes retrigger the (very short) clip instead of playing into an
+// already-finished element, which is a silent no-op.
 function playClick() {
   if (soundEnabled) {
     click_sound.currentTime = 0;
@@ -542,27 +509,12 @@ function playClick() {
   }
 }
 
-// Plays a short three-note ascending triad as the completion fanfare when
-// the whole crossword is finished correctly.
+// Plays the completion fanfare when the whole crossword is finished
+// correctly.
 function playTada() {
-  if (!soundEnabled) return;
-  const ctx = audioCtx();
-  const notes = [
-    { freq: 523.25, start: 0,    dur: 0.15 },  // C5
-    { freq: 659.25, start: 0.12, dur: 0.15 },  // E5
-    { freq: 783.99, start: 0.24, dur: 0.55 },  // G5
-  ];
-  for (const { freq, start, dur } of notes) {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = "triangle";
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.28, ctx.currentTime + start);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
-    osc.start(ctx.currentTime + start);
-    osc.stop(ctx.currentTime + start + dur);
+  if (soundEnabled) {
+    tada_sound.currentTime = 0;
+    tada_sound.play();
   }
 }
 
