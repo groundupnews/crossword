@@ -495,43 +495,51 @@ document.getElementById("sound-btn").addEventListener("click", () => {
   document.getElementById("sound-btn").textContent = soundEnabled ? "🔊" : "🔇";
 });
 
-let _audioCtx = null;
-let _clickBuf = null;
-const CLICK_DUR = 0.035;
+//let _audioCtx = null;
+//let _clickBuf = null;
+//const CLICK_DUR = 0.035;
+const click_sound = document.getElementById('click-sound');
 
 // Lazily creates (on first use, so it's tied to a user gesture as browsers
 // require) a shared AudioContext plus a short buffer of white noise used as
 // the raw material for the keyboard click sound.
-function audioCtx() {
-  if (!_audioCtx) {
-    _audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-    const buf = _audioCtx.createBuffer(1, Math.ceil(_audioCtx.sampleRate * CLICK_DUR), _audioCtx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    _clickBuf = buf;
-  }
-  return _audioCtx;
-}
-
+//function audioCtx() {
+//  if (!_audioCtx) {
+//    _audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+//    const buf = _audioCtx.createBuffer(1, Math.ceil(_audioCtx.sampleRate * CLICK_DUR), _audioCtx.sampleRate);
+//    const data = buf.getChannelData(0);
+//    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+//    _clickBuf = buf;
+//  }
+//  return _audioCtx;
+//}
+//
 // Plays a short filtered burst of the noise buffer -- a synthesized
 // mechanical-keyboard "clack" -- on each letter typed or backspaced, unless
 // the user has muted sound.
+//function playClick() {
+//  if (!soundEnabled) return;
+//  const ctx = audioCtx();
+//  const source = ctx.createBufferSource();
+//  source.buffer = _clickBuf;
+//  const filter = ctx.createBiquadFilter();
+//  filter.type = "lowpass";
+//  filter.frequency.value = 1200;
+//  const gain = ctx.createGain();
+//  gain.gain.setValueAtTime(0.5, ctx.currentTime);
+//  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + CLICK_DUR);
+//  source.connect(filter);
+//  filter.connect(gain);
+//  gain.connect(ctx.destination);
+//  source.start(ctx.currentTime);
+//  source.stop(ctx.currentTime + CLICK_DUR);
+//}
+
 function playClick() {
-  if (!soundEnabled) return;
-  const ctx = audioCtx();
-  const source = ctx.createBufferSource();
-  source.buffer = _clickBuf;
-  const filter = ctx.createBiquadFilter();
-  filter.type = "lowpass";
-  filter.frequency.value = 1200;
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.5, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + CLICK_DUR);
-  source.connect(filter);
-  filter.connect(gain);
-  gain.connect(ctx.destination);
-  source.start(ctx.currentTime);
-  source.stop(ctx.currentTime + CLICK_DUR);
+  if (soundEnabled) {
+    click_sound.currentTime = 0;
+    click_sound.play();
+  }
 }
 
 // Plays a short three-note ascending triad as the completion fanfare when

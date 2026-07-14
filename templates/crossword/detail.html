@@ -6,6 +6,7 @@
 {% block content %}
 <h1>{{ crossword.name|default:"Untitled crossword" }}</h1>
 
+<audio id="click-sound" src="{% static 'crossword/click_001.ogg' %}" preload="auto"></audio>
 <div class="editor">
   <div class="grid-pane">
     <div class="buttons">
@@ -119,5 +120,5 @@
     csrfToken: "{{ csrf_token }}",
   };
 </script>
-<script src="{% static 'crossword/solver.js' %}?v=36"></script>
+<script src="{% static 'crossword/solver.js' %}?v=38"></script>
 {% endblock %}
