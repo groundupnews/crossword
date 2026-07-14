@@ -221,40 +221,26 @@ function setCursor(i) {
   render();
 }
 
-// Moves the cursor to the next white cell along the current direction,
-// skipping over any blocks in the same row/column. Unlike the constructor's
-// advance(), this wraps: running off the end of a row/column continues
-// scanning subsequent rows/columns (wrapping the grid itself) until a white
-// cell is found, so typing an answer can run straight into the next slot.
+// Moves the cursor to the next cell of the current slot, or -- once the
+// slot's last cell is reached -- jumps to the start of the next slot, same
+// as Tab/the next-slot-btn arrow. Reusing nextSlot() here (rather than
+// re-deriving the traversal by walking raw grid cells) guarantees the two
+// stay in agreement, including nextSlot()'s direction switch at the end of
+// a direction's slot list.
 function advance() {
-  const r = rowOf(state.cursor);
-  const c = colOf(state.cursor);
-  if (state.direction === ACROSS) {
-    let nc = c + 1;
-    while (nc < cols && !isWhite(r, nc)) nc++;
-    if (nc < cols) {
-      state.cursor = idx(r, nc);
-    } else {
-      for (let dr = 1; dr <= rows; dr++) {
-        const nr = (r + dr) % rows;
-        let fc = 0;
-        while (fc < cols && !isWhite(nr, fc)) fc++;
-        if (fc < cols) { state.cursor = idx(nr, fc); break; }
-      }
+  const slots = computeSlots();
+  const current = slotAt(state.cursor, state.direction, slots);
+  if (current) {
+    const i = current.indices.indexOf(state.cursor);
+    if (i < current.indices.length - 1) {
+      state.cursor = current.indices[i + 1];
+      return;
     }
-  } else {
-    let nr = r + 1;
-    while (nr < rows && !isWhite(nr, c)) nr++;
-    if (nr < rows) {
-      state.cursor = idx(nr, c);
-    } else {
-      for (let dc = 1; dc <= cols; dc++) {
-        const nc = (c + dc) % cols;
-        let fr = 0;
-        while (fr < rows && !isWhite(fr, nc)) fr++;
-        if (fr < rows) { state.cursor = idx(fr, nc); break; }
-      }
-    }
+  }
+  const result = nextSlot(true, slots);
+  if (result) {
+    state.cursor = result.slot.start;
+    state.direction = result.direction;
   }
 }
 
