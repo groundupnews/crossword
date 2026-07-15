@@ -334,6 +334,8 @@ button:focus-visible {
 }
 
 .cell-indicator {
+  font-family: "Font Awesome 7 Free";
+  font-weight: 900;
   font-size: 0.25px;
   pointer-events: none;
 }

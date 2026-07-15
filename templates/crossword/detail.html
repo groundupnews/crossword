@@ -12,7 +12,7 @@
   <div class="grid-pane">
     <div class="buttons">
       <div class="check-dropdown">
-        <button id="check-btn" type="button">✓ Check</button>
+        <button id="check-btn" type="button"><i class="fa-solid fa-check"></i> Check</button>
         <ul class="check-menu" id="check-menu" hidden>
           <li data-mode="letter">Letter</li>
           <li data-mode="word">Word</li>
@@ -20,20 +20,20 @@
         </ul>
       </div>
       <div class="check-dropdown">
-        <button id="reveal-btn" type="button">👁 Reveal</button>
+        <button id="reveal-btn" type="button"><i class="fa-solid fa-eye"></i> Reveal</button>
         <ul class="check-menu" id="reveal-menu" hidden>
           <li data-mode="letter">Letter</li>
           <li data-mode="word">Word</li>
           <li data-mode="crossword">Crossword</li>
         </ul>
       </div>
-      <button id="sound-btn" type="button" title="Toggle sound">🔊</button>
+      <button id="sound-btn" type="button" title="Toggle sound"><i id="sound-icon" class="fa-solid fa-volume-high"></i></button>
       <span class="timer-wrap">
-        <span id="timer">🕐 00:00:00</span>
+        <span id="timer"><i class="fa-solid fa-clock"></i> <span id="timer-value">00:00:00</span></span>
         <button id="timer-toggle" type="button">Hide</button>
       </span>
       {% if perms.crossword.can_generate_crosswords %}
-      <a href="{% url 'crossword_edit' crossword.pk %}" class="btn-icon" title="Edit crossword">✏</a>
+      <a href="{% url 'crossword_edit' crossword.pk %}" class="btn-icon" title="Edit crossword"><i class="fa-solid fa-pen"></i></a>
       {% endif %}
     </div>
     <svg id="grid" tabindex="0"
@@ -76,7 +76,7 @@
         <button type="button" class="kb-key" data-key="B">B</button>
         <button type="button" class="kb-key" data-key="N">N</button>
         <button type="button" class="kb-key" data-key="M">M</button>
-        <button type="button" class="kb-key kb-backspace" data-key="Backspace">⌫</button>
+        <button type="button" class="kb-key kb-backspace" data-key="Backspace"><i class="fa-solid fa-delete-left"></i></button>
       </div>
     </div>
     <dl class="key-legend">
@@ -121,5 +121,5 @@
     csrfToken: "{{ csrf_token }}",
   };
 </script>
-<script src="{% static 'crossword/solver.js' %}?v=39"></script>
+<script src="{% static 'crossword/solver.js' %}?v=40"></script>
 {% endblock %}

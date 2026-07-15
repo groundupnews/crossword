@@ -235,7 +235,7 @@ function updateCompletionIndicator(slots) {
   const allComplete = slots.length > 0 && slots.every(s => s.indices.every(i => state.cells[i]));
   const allHaveClues = allComplete && slots.every(s => state.clues[slotKey(s)]);
   const done = allComplete && allHaveClues;
-  el.textContent = done ? "✓" : "✗";
+  el.innerHTML = done ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-xmark"></i>';
   el.className = done ? "done" : "pending";
 }
 

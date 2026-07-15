@@ -6,7 +6,7 @@
 <h1>Crosswords</h1>
 {% if perms.crossword.can_generate_crosswords %}
 <div class="buttons">
-  <button id="import-btn" type="button">⬆ Import</button>
+  <button id="import-btn" type="button"><i class="fa-solid fa-upload"></i> Import</button>
   <input type="file" id="import-file" accept=".xd" hidden>
 </div>
 {% endif %}
@@ -34,7 +34,7 @@
         <a href="{% url 'crossword_solve' crossword.pk %}">{{ crossword.name|default:"Untitled" }}</a>
       </td>
       {% if not perms.crossword.can_generate_crosswords %}<td>{{ crossword.published|date:"Y-m-d" }}</td>{% endif %}
-      <td><a href="{% url 'crossword_xd' crossword.pk %}">⬇ Export</a></td>
+      <td><a href="{% url 'crossword_xd' crossword.pk %}"><i class="fa-solid fa-download"></i> Export</a></td>
       {% if perms.crossword.can_generate_crosswords %}
       <td><a href="{% url 'crossword_edit' crossword.pk %}">Edit</a></td>
       <td>
@@ -50,7 +50,7 @@
         <form method="post" action="{% url 'crossword_delete' crossword.pk %}">
           {% csrf_token %}
           <button class="btn-delete" type="submit"
-                  onclick="return confirm('Delete this crossword? This cannot be undone.')">🗑</button>
+                  onclick="return confirm('Delete this crossword? This cannot be undone.')"><i class="fa-solid fa-trash"></i></button>
         </form>
       </td>
       {% endif %}

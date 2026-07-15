@@ -162,7 +162,7 @@ function render() {
       ind.setAttribute("y", r + 0.24);
       ind.setAttribute("class", "cell-indicator " + state.indicators[i]);
       ind.setAttribute("text-anchor", "middle");
-      ind.textContent = state.indicators[i] === "correct" ? "✓" : "✗";
+      ind.textContent = state.indicators[i] === "correct" ? "" : "";
       svg.appendChild(ind);
     }
   }
@@ -490,9 +490,11 @@ function clearMessage() {
 
 let soundEnabled = true;
 
+const soundIcon = document.getElementById("sound-icon");
 document.getElementById("sound-btn").addEventListener("click", () => {
   soundEnabled = !soundEnabled;
-  document.getElementById("sound-btn").textContent = soundEnabled ? "🔊" : "🔇";
+  soundIcon.classList.toggle("fa-volume-high", soundEnabled);
+  soundIcon.classList.toggle("fa-volume-xmark", !soundEnabled);
 });
 
 const click_sound = document.getElementById('click-sound');
@@ -634,10 +636,11 @@ document.addEventListener("keydown", (e) => {
 // --- Timer ---
 let timerSeconds = 0;
 const timerEl = document.getElementById("timer");
+const timerValueEl = document.getElementById("timer-value");
 document.getElementById("timer-toggle").addEventListener("click", () => {
   const hidden = !timerEl.hidden;
   timerEl.hidden = hidden;
-  document.getElementById("timer-toggle").textContent = hidden ? "Show 🕐" : "Hide";
+  document.getElementById("timer-toggle").textContent = hidden ? "Show" : "Hide";
 });
 
 // Ticks once a second, formatting elapsed time as HH:MM:SS. Stopped by
@@ -647,7 +650,7 @@ const timerInterval = setInterval(() => {
   const h = Math.floor(timerSeconds / 3600);
   const m = Math.floor((timerSeconds % 3600) / 60);
   const s = timerSeconds % 60;
-  timerEl.textContent = "🕐 " +
+  timerValueEl.textContent =
     String(h).padStart(2, "0") + ":" +
     String(m).padStart(2, "0") + ":" +
     String(s).padStart(2, "0");
