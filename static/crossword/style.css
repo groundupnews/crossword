@@ -557,7 +557,7 @@ button:focus-visible {
   order: 3;
   min-width: 13rem;
   max-height: 38rem;
-  overflow-y: auto;
+  flex-direction: column;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 0.85rem 1rem;
@@ -565,10 +565,25 @@ button:focus-visible {
   box-shadow: var(--shadow);
 }
 
+/* Scoped like .results-pager below: an author `display` always beats the
+   UA's `[hidden] { display: none }`, so it must not apply while hidden. */
+.results-pane:not([hidden]) {
+  display: flex;
+}
+
+.results-pane h2 {
+  flex: none;
+}
+
+/* Scrolls independently so the pager below it (outside this element)
+   stays put instead of requiring a scroll to reach. */
 .results-pane ul {
   list-style: none;
   padding: 0;
   margin: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .results-pane li {
@@ -584,7 +599,7 @@ button:focus-visible {
 }
 
 .results-pager {
-  display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
@@ -592,6 +607,14 @@ button:focus-visible {
   padding-top: 0.6rem;
   border-top: 1px solid var(--line);
   font-size: 0.85rem;
+}
+
+/* An author-level `display` always beats the UA's `[hidden] { display: none }`
+   regardless of selector specificity, so the flex layout must be scoped to
+   :not([hidden]) or the pager stays visible even when JS hides it (see the
+   same pattern on .modal-overlay). */
+.results-pager:not([hidden]) {
+  display: flex;
 }
 
 .results-pager button {
