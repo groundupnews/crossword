@@ -7,7 +7,7 @@
 {% if perms.crossword.can_generate_crosswords %}
 <div class="buttons">
   <button id="import-btn" type="button"><i class="fa-solid fa-upload"></i> Import</button>
-  <input type="file" id="import-file" accept=".xd" hidden>
+  <input type="file" id="import-file" accept=".xd,.xml" hidden>
 </div>
 {% endif %}
 {% if crosswords %}
@@ -73,7 +73,7 @@
     const text = await file.text();
     const resp = await fetch("{% url 'crossword_import' %}", {
       method: "POST",
-      headers: {"Content-Type": "text/plain; charset=utf-8", "X-CSRFToken": CSRF_TOKEN},
+      headers: {"Content-Type": "text/plain; charset=utf-8", "X-CSRFToken": CSRF_TOKEN, "X-Filename": file.name},
       body: text,
     });
     const data = await resp.json();

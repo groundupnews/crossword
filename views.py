@@ -18,6 +18,7 @@ from .cwutils.cwutils import Grid as CwutilsGrid
 from .forms import CrosswordCreateForm
 from .models import Clue, Crossword, Entry, Word
 from .xd import parse_xd, render_xd, save_crossword_from_xd
+from .xml_format import parse_xml
 
 # Nathan not to self: I've reviewed this but not closely.
 
@@ -373,17 +374,20 @@ def crossword_xd(request, pk):
 @permission_required(PERM)
 @require_POST
 def crossword_import(request):
-    """Create or replace a crossword from an uploaded .xd file.
+    """Create or replace a crossword from an uploaded .xd or .xml file.
 
-    Accepts a plain-text .xd body. Returns JSON with a redirect URL on
-    success, or an error message on failure.
+    Accepts a plain-text .xd body or a Crossword Compiler .xml body; the
+    X-Filename header's extension picks which parser to use. Returns JSON
+    with a redirect URL on success, or an error message on failure.
     """
+    filename = request.headers.get("X-Filename", "")
+    parse = parse_xml if filename.lower().endswith(".xml") else parse_xd
     try:
-        data = parse_xd(request.body.decode("utf-8"))
+        data = parse(request.body.decode("utf-8"))
         if not data["size"]["rows"]:
             raise ValueError("empty grid")
     except Exception:
-        return JsonResponse({"error": "Invalid .xd file"}, status=400)
+        return JsonResponse({"error": "Invalid file"}, status=400)
 
     crossword = save_crossword_from_xd(data, replace=True)
     return JsonResponse({"redirect": reverse("crossword_edit", args=[crossword.pk])})

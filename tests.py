@@ -11,6 +11,7 @@ from django.urls import reverse
 from .grid import ACROSS, DOWN, slots
 from .models import Clue, Crossword, Entry, Word
 from .xd import parse_xd, render_xd, save_crossword_from_xd
+from .xml_format import parse_xml
 
 
 def make_user_with_perm(client, username="testuser"):
@@ -54,6 +55,62 @@ XD_3X3 = (
     "A1. Feline ~ CAT\n"
     "\n"
     "D1. Feline ~ CAT\n"
+)
+
+
+def _xml_puzzle(grid_cells, clues, title="", creator="", copyright_=""):
+    """Builds a minimal Crossword Compiler XML document. grid_cells is a
+    list of rows, each a list of (solution, is_block) tuples. clues is a
+    list of (direction, number, text) tuples."""
+    num_rows = len(grid_cells)
+    num_cols = len(grid_cells[0])
+    cells_xml = []
+    for r, row in enumerate(grid_cells):
+        for c, (solution, is_block) in enumerate(row):
+            if is_block:
+                cells_xml.append(f'<cell x="{c + 1}" y="{r + 1}" type="block"/>')
+            else:
+                cells_xml.append(f'<cell x="{c + 1}" y="{r + 1}" solution="{solution}"/>')
+
+    clues_xml = []
+    for direction in ("Across", "Down"):
+        entries = [(n, t) for d, n, t in clues if d == direction]
+        if not entries:
+            continue
+        clue_lines = "".join(f'<clue number="{n}">{t}</clue>' for n, t in entries)
+        clues_xml.append(f"<clues><title>{direction}</title>{clue_lines}</clues>")
+
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<crossword-compiler xmlns="http://crossword.info/xml/crossword-compiler">'
+        '<rectangular-puzzle xmlns="http://crossword.info/xml/rectangular-puzzle">'
+        f"<metadata><title>{title}</title><creator>{creator}</creator>"
+        f"<copyright>{copyright_}</copyright></metadata>"
+        f'<crossword><grid width="{num_cols}" height="{num_rows}">'
+        + "".join(cells_xml)
+        + "</grid>"
+        + "".join(clues_xml)
+        + "</crossword></rectangular-puzzle></crossword-compiler>"
+    )
+
+
+# Minimal 1×3 xml puzzle, same shape as XD_1ROW.
+XML_1ROW = _xml_puzzle(
+    [[("C", False), ("A", False), ("T", False)]],
+    [("Across", 1, "A feline")],
+    title="Test Puzzle", creator="Test Author", copyright_="2022 Test Co",
+)
+
+# 3×3 xml puzzle with one across and one down slot sharing number 1, same
+# shape as XD_3X3.
+XML_3X3 = _xml_puzzle(
+    [
+        [("C", False), ("A", False), ("T", False)],
+        [("A", False), ("", True), ("", True)],
+        [("T", False), ("", True), ("", True)],
+    ],
+    [("Across", 1, "Feline"), ("Down", 1, "Feline")],
+    title="Mini Test", creator="Tester",
 )
 
 
@@ -522,6 +579,69 @@ class ParseXdTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# parse_xml
+# ---------------------------------------------------------------------------
+
+class ParseXmlTest(TestCase):
+    """Tests for parse_xml(): the Crossword Compiler XML parser. Mirrors
+    ParseXdTest since both feed the same save_crossword_from_xd() shape."""
+
+    def test_metadata_parsed(self):
+        # <title>/<creator>/<copyright> map to name/authors/copyright; xml
+        # has no editor field, so editors is always "".
+        data = parse_xml(XML_1ROW)
+        self.assertEqual(data["name"], "Test Puzzle")
+        self.assertEqual(data["authors"], "Test Author")
+        self.assertEqual(data["editors"], "")
+        self.assertEqual(data["copyright"], "2022 Test Co")
+
+    def test_missing_optional_metadata_is_empty(self):
+        data = parse_xml(_xml_puzzle([[("C", False), ("A", False), ("T", False)]], []))
+        self.assertEqual(data["name"], "")
+        self.assertEqual(data["authors"], "")
+        self.assertEqual(data["copyright"], "")
+
+    def test_grid_dimensions(self):
+        data = parse_xml(XML_1ROW)
+        self.assertEqual(data["size"], {"rows": 1, "cols": 3})
+
+    def test_grid_dimensions_2d(self):
+        data = parse_xml(XML_3X3)
+        self.assertEqual(data["size"], {"rows": 3, "cols": 3})
+
+    def test_cells_from_solutions(self):
+        data = parse_xml(XML_1ROW)
+        self.assertEqual(data["grid"], ["C", "A", "T"])
+        self.assertEqual(data["blocked_out_squares"], [])
+
+    def test_block_type_produces_blocked_square(self):
+        # A <cell type="block"/> marks a blocked cell; its index goes into
+        # blocked_out_squares and its cell value is "".
+        data = parse_xml(_xml_puzzle(
+            [[("C", False), ("", True), ("T", False)]], [],
+        ))
+        self.assertEqual(data["grid"], ["C", "", "T"])
+        self.assertEqual(data["blocked_out_squares"], [1])
+
+    def test_across_clue_parsed(self):
+        data = parse_xml(XML_1ROW)
+        self.assertEqual(data["across_clues"], {1: "A feline"})
+        self.assertEqual(data["down_clues"], {})
+
+    def test_across_and_down_clues_parsed(self):
+        # Across and down clues are parsed independently even when they
+        # share the same number (both are "1" here, for the shared cell).
+        data = parse_xml(XML_3X3)
+        self.assertEqual(data["across_clues"], {1: "Feline"})
+        self.assertEqual(data["down_clues"], {1: "Feline"})
+
+    def test_2d_blocked_squares(self):
+        data = parse_xml(XML_3X3)
+        # Row 1: A## → indices 4, 5 blocked. Row 2: T## → indices 7, 8 blocked.
+        self.assertEqual(sorted(data["blocked_out_squares"]), [4, 5, 7, 8])
+
+
+# ---------------------------------------------------------------------------
 # render_xd
 # ---------------------------------------------------------------------------
 
@@ -826,6 +946,62 @@ class CrosswordXdImportViewTest(TestCase):
         self.client.login(username="noperm", password="testpass")
         response = self._import()
         self.assertEqual(response.status_code, 302)
+        self.assertFalse(Crossword.objects.exists())
+
+
+# ---------------------------------------------------------------------------
+# xml import view
+# ---------------------------------------------------------------------------
+
+class CrosswordXmlImportViewTest(TestCase):
+    """Tests for crossword_import()'s xml branch: the X-Filename header
+    picks parse_xml over parse_xd when it ends in .xml."""
+
+    def setUp(self):
+        make_user_with_perm(self.client)
+
+    def _import(self, body=XML_1ROW, filename="puzzle.xml"):
+        return self.client.post(
+            reverse("crossword_import"),
+            data=body,
+            content_type="text/plain; charset=utf-8",
+            HTTP_X_FILENAME=filename,
+        )
+
+    def test_creates_crossword_with_correct_fields(self):
+        response = self._import()
+        self.assertEqual(response.status_code, 200)
+        cw = Crossword.objects.get()
+        self.assertEqual(cw.name, "Test Puzzle")
+        self.assertEqual(cw.authors, "Test Author")
+        self.assertEqual(cw.cells, ["C", "A", "T"])
+
+    def test_creates_entry_and_clue(self):
+        self._import()
+        cw = Crossword.objects.get()
+        entry = Entry.objects.get(crossword=cw, number=1, direction=Entry.ACROSS)
+        self.assertEqual(entry.word.text, "CAT")
+        self.assertEqual(entry.clue.clue, "A feline")
+
+    def test_filename_extension_is_case_insensitive(self):
+        response = self._import(filename="puzzle.XML")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Crossword.objects.get().cells, ["C", "A", "T"])
+
+    def test_missing_filename_falls_back_to_xd_parser(self):
+        # No X-Filename header (older clients, or a direct API call) should
+        # keep working exactly as it did before .xml support existed: the
+        # body is parsed as .xd, so posting xml content here fails to parse
+        # as xd's line-based grid and is rejected rather than silently
+        # misread.
+        response = self.client.post(
+            reverse("crossword_import"), data=XML_1ROW, content_type="text/plain; charset=utf-8",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_invalid_xml_returns_400(self):
+        response = self._import(body="not xml")
+        self.assertEqual(response.status_code, 400)
         self.assertFalse(Crossword.objects.exists())
 
 
