@@ -218,10 +218,9 @@ class TestMatching(unittest.TestCase):
 
     def test_words_freedom(self):
         # No assertion here -- this just exercises words_freedom() against
-        # the real dictionary and prints its ranking for manual
-        # inspection. The exactly-verified behaviour lives in
-        # TestWordsFreedom below.
-        print(self.grid1.slots[1].words_freedom())
+        # the real dictionary so it's caught if it raises. The
+        # exactly-verified behaviour lives in TestWordsFreedom below.
+        self.grid1.slots[1].words_freedom()
 
 
 # Claude added these tests
