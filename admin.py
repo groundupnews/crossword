@@ -1,6 +1,15 @@
+from allauth.account.admin import EmailConfirmationAdmin
+from allauth.account.models import EmailConfirmation
 from django.contrib import admin
 
 from .models import Clue, Crossword, Entry, Word
+
+# allauth registers EmailAddress itself, but skips EmailConfirmation
+# whenever EMAIL_CONFIRMATION_HMAC is on (the default here) since
+# confirmations are then verified from a signed token rather than a
+# stored row. Registered anyway for visibility; expect it to stay empty
+# unless that setting is turned off.
+admin.site.register(EmailConfirmation, EmailConfirmationAdmin)
 
 
 @admin.register(Word)
