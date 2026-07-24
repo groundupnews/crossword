@@ -240,6 +240,24 @@ button:focus-visible {
   font-size: 1rem;
 }
 
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.checkbox-label input {
+  display: inline-block;
+  width: auto;
+  margin-top: 0;
+}
+
+.owner-tag {
+  color: var(--faint);
+  font-size: 1rem;
+  font-weight: normal;
+}
+
 .dates {
   color: var(--faint);
   font-size: 0.85rem;

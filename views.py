@@ -42,6 +42,7 @@ class CrosswordCreateView(PermissionRequiredMixin, CreateView):
         # Overridden instead of using the usual success_url: the redirect
         # target (the edit page for this specific new pk) doesn't exist
         # until the object is saved, so it can't be a static class attribute.
+        form.instance.owner = self.request.user
         self.object = form.save()
         return redirect("crossword_edit", pk=self.object.pk)
 
@@ -49,7 +50,8 @@ class CrosswordCreateView(PermissionRequiredMixin, CreateView):
 class CrosswordSelectView(ListView):
     """List crosswords.
 
-    Generators see all crosswords. Everyone else sees only published ones.
+    Generators see all crosswords, except private+unpublished crosswords
+    they don't own. Everyone else sees only published ones.
     """
 
     model = Crossword
@@ -59,10 +61,15 @@ class CrosswordSelectView(ListView):
 
     def get_queryset(self):
         # Restricts the list to published crosswords for anyone without the
-        # generate permission; generators see everything, including drafts.
+        # generate permission; generators see everything except other users'
+        # private, unpublished drafts.
         qs = super().get_queryset()
-        if not self.request.user.has_perm(PERM):
+        user = self.request.user
+        if not user.has_perm(PERM):
             qs = qs.published()
+        else:
+            unpublished = Q(published__isnull=True) | Q(published__gt=timezone.now())
+            qs = qs.exclude(Q(private=True) & unpublished & ~Q(owner=user))
         return qs
 
 
@@ -70,6 +77,8 @@ class CrosswordSelectView(ListView):
 def crossword_edit(request, pk):
     """Render the editable crossword grid for the given crossword."""
     crossword = get_object_or_404(Crossword, pk=pk)
+    if crossword.private and crossword.owner_id != request.user.id:
+        raise Http404
     clues = {
         f"{e.number}{e.direction}": e.clue.clue
         for e in crossword.entries.select_related("clue")
@@ -200,6 +209,8 @@ def crossword_save(request, pk):
     slots touch nothing but cells.
     """
     crossword = get_object_or_404(Crossword, pk=pk)
+    if crossword.private and crossword.owner_id != request.user.id:
+        raise Http404
     payload = json.loads(request.body)
 
     with transaction.atomic():
@@ -210,6 +221,7 @@ def crossword_save(request, pk):
         crossword.authors = payload.get("authors", "")
         crossword.editors = payload.get("editors", "")
         crossword.copyright = payload.get("copyright", "")
+        crossword.private = payload.get("private", False)
         published_str = payload.get("published") or ""
         if published_str:
             dt = datetime.fromisoformat(published_str)

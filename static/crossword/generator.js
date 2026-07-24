@@ -465,6 +465,7 @@ document.getElementById("save-btn").addEventListener("click", async () => {
     published: document.getElementById("cw-published").value
       ? localISOWithOffset(document.getElementById("cw-published").value)
       : null,
+    private: document.getElementById("cw-private").checked,
     clues: state.clues,
   };
   const resp = await fetch(CW.saveUrl, {
@@ -664,6 +665,7 @@ document.getElementById("blocks-pct").textContent =
 ["cw-name", "cw-authors", "cw-editors", "cw-copyright", "cw-description", "cw-published"].forEach(id => {
   document.getElementById(id).addEventListener("input", markDirty);
 });
+document.getElementById("cw-private").addEventListener("change", markDirty);
 
 // Triggers the browser's native "leave site?" confirmation on tab close/
 // reload when there are unsaved changes.

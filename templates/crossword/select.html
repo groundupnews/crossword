@@ -36,7 +36,11 @@
       {% if not perms.crossword.can_generate_crosswords %}<td>{{ crossword.published|date:"Y-m-d" }}</td>{% endif %}
       <td><a href="{% url 'crossword_xd' crossword.pk %}"><i class="fa-solid fa-download"></i> Export</a></td>
       {% if perms.crossword.can_generate_crosswords %}
-      <td><a href="{% url 'crossword_edit' crossword.pk %}">Edit</a></td>
+      <td>
+        {% if not crossword.private or crossword.owner_id == request.user.id %}
+          <a href="{% url 'crossword_edit' crossword.pk %}">Edit</a>
+        {% endif %}
+      </td>
       <td>
         {% if crossword.published %}
           <span class="{% if crossword.is_published %}status-published{% else %}status-unpublished{% endif %}">
