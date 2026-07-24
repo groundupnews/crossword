@@ -2,6 +2,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 # Claude: Why use a regex validator instead of Python's isupper?
 # Claude response: Two reasons. (1) isupper() allows digits — "AB3".isupper() is True
@@ -103,6 +104,12 @@ class Crossword(models.Model):
     blocked_out_squares = models.JSONField(default=list)
     cells = models.JSONField(default=list)
     requires_rotational_symmetry = models.BooleanField(default=True)
+    owner = models.ForeignKey(
+        User,
+        default=1,
+        on_delete=models.CASCADE,
+    )
+    private = models.BooleanField(default=False)
 
     objects = CrosswordQuerySet.as_manager()
 
@@ -139,6 +146,7 @@ class Crossword(models.Model):
 # grids awkward (cells with letters but no committed Entry yet). The main risk with the
 # current design is that cells and Entry rows drift out of sync — worth adding a
 # validation method on Crossword that checks consistency, but not a reason to redesign.
+
 
 class Entry(models.Model):
     """A single numbered slot (crossword, number, direction) in a completed

@@ -70,7 +70,9 @@ def _xml_puzzle(grid_cells, clues, title="", creator="", copyright_=""):
             if is_block:
                 cells_xml.append(f'<cell x="{c + 1}" y="{r + 1}" type="block"/>')
             else:
-                cells_xml.append(f'<cell x="{c + 1}" y="{r + 1}" solution="{solution}"/>')
+                cells_xml.append(
+                    f'<cell x="{c + 1}" y="{r + 1}" solution="{solution}"/>'
+                )
 
     clues_xml = []
     for direction in ("Across", "Down"):
@@ -98,7 +100,9 @@ def _xml_puzzle(grid_cells, clues, title="", creator="", copyright_=""):
 XML_1ROW = _xml_puzzle(
     [[("C", False), ("A", False), ("T", False)]],
     [("Across", 1, "A feline")],
-    title="Test Puzzle", creator="Test Author", copyright_="2022 Test Co",
+    title="Test Puzzle",
+    creator="Test Author",
+    copyright_="2022 Test Co",
 )
 
 # 3×3 xml puzzle with one across and one down slot sharing number 1, same
@@ -110,13 +114,15 @@ XML_3X3 = _xml_puzzle(
         [("T", False), ("", True), ("", True)],
     ],
     [("Across", 1, "Feline"), ("Down", 1, "Feline")],
-    title="Mini Test", creator="Tester",
+    title="Mini Test",
+    creator="Tester",
 )
 
 
 # ---------------------------------------------------------------------------
 # Grid slot logic
 # ---------------------------------------------------------------------------
+
 
 class GridSlotTest(TestCase):
     """Tests for grid.slots(): detection, numbering, and completeness.
@@ -158,7 +164,9 @@ class GridSlotTest(TestCase):
         # of each row) and the down slots start at cells 0, 1, 2 (the top row).
         # Checks that the numbering matches the expected reading-order assignment.
         s = slots(3, 3, [], [""] * 9)
-        across_starts = {slot.number: slot.start for slot in s if slot.direction == ACROSS}
+        across_starts = {
+            slot.number: slot.start for slot in s if slot.direction == ACROSS
+        }
         down_starts = {slot.number: slot.start for slot in s if slot.direction == DOWN}
         self.assertEqual(across_starts, {1: 0, 4: 3, 5: 6})
         self.assertEqual(down_starts, {1: 0, 2: 1, 3: 2})
@@ -185,6 +193,7 @@ class GridSlotTest(TestCase):
 # ---------------------------------------------------------------------------
 # Word model
 # ---------------------------------------------------------------------------
+
 
 class WordModelTest(TestCase):
     """Tests for Word's uppercase-A-Z-only validation, enforced by
@@ -213,9 +222,12 @@ class WordModelTest(TestCase):
 # Crossword create / save views
 # ---------------------------------------------------------------------------
 
+
 class CrosswordCreateViewTest(TestCase):
     """Tests for the "new crossword" form/view (CrosswordCreateForm +
     CrosswordCreateView)."""
+
+    fixtures = ["users.json"]
 
     def setUp(self):
         make_user_with_perm(self.client)
@@ -239,6 +251,8 @@ class CrosswordSaveViewTest(TestCase):
     """Tests for crossword_save(): deriving Word/Clue/Entry rows from the
     posted grid, per the save-payload contract in crossword_spec.md."""
 
+    fixtures = ["users.json"]
+
     def setUp(self):
         make_user_with_perm(self.client)
         self.cw = make_crossword()
@@ -255,13 +269,15 @@ class CrosswordSaveViewTest(TestCase):
         # When every cell in a slot is filled, saving should create a Word record
         # for the answer text and an Entry record linking that word to the crossword
         # slot. If a clue is provided it should be stored and linked to the entry.
-        response = self._save({
-            "cells": ["C", "A", "T"],
-            "blocked_out_squares": [],
-            "name": "",
-            "description": "",
-            "clues": {"1A": "A feline"},
-        })
+        response = self._save(
+            {
+                "cells": ["C", "A", "T"],
+                "blocked_out_squares": [],
+                "name": "",
+                "description": "",
+                "clues": {"1A": "A feline"},
+            }
+        )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Word.objects.filter(text="CAT").exists())
         entry = Entry.objects.get(crossword=self.cw, number=1, direction=Entry.ACROSS)
@@ -271,13 +287,15 @@ class CrosswordSaveViewTest(TestCase):
     def test_partial_slot_creates_no_entry(self):
         # A slot with at least one empty cell is not complete and should not
         # produce an Entry record. The cells are still saved to the grid.
-        self._save({
-            "cells": ["C", "A", ""],
-            "blocked_out_squares": [],
-            "name": "",
-            "description": "",
-            "clues": {},
-        })
+        self._save(
+            {
+                "cells": ["C", "A", ""],
+                "blocked_out_squares": [],
+                "name": "",
+                "description": "",
+                "clues": {},
+            }
+        )
         self.assertFalse(Entry.objects.filter(crossword=self.cw).exists())
 
     def test_new_word_gets_source_crossword(self):
@@ -287,13 +305,15 @@ class CrosswordSaveViewTest(TestCase):
         cw = make_crossword(num_cols=5, cells=["Z", "Z", "Z", "Z", "Z"])
         response = self.client.post(
             reverse("crossword_save", args=[cw.pk]),
-            data=json.dumps({
-                "cells": ["Z", "Z", "Z", "Z", "Z"],
-                "blocked_out_squares": [],
-                "name": "",
-                "description": "",
-                "clues": {},
-            }),
+            data=json.dumps(
+                {
+                    "cells": ["Z", "Z", "Z", "Z", "Z"],
+                    "blocked_out_squares": [],
+                    "name": "",
+                    "description": "",
+                    "clues": {},
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
@@ -309,13 +329,15 @@ class CrosswordSaveViewTest(TestCase):
         cw = make_crossword(num_cols=5, cells=["Z", "Z", "Z", "Z", "Z"])
         self.client.post(
             reverse("crossword_save", args=[cw.pk]),
-            data=json.dumps({
-                "cells": ["Z", "Z", "Z", "Z", "Z"],
-                "blocked_out_squares": [],
-                "name": "",
-                "description": "",
-                "clues": {},
-            }),
+            data=json.dumps(
+                {
+                    "cells": ["Z", "Z", "Z", "Z", "Z"],
+                    "blocked_out_squares": [],
+                    "name": "",
+                    "description": "",
+                    "clues": {},
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(Word.objects.get(text="ZZZZZ").source_crossword, other_cw)
@@ -326,34 +348,42 @@ class CrosswordSaveViewTest(TestCase):
         cw = make_crossword(num_cols=5, cells=["Z", "Z", "Z", "Z", "Z"])
         self.client.post(
             reverse("crossword_save", args=[cw.pk]),
-            data=json.dumps({
-                "cells": ["Z", "Z", "Z", "Z", "Z"],
-                "blocked_out_squares": [],
-                "name": "",
-                "description": "",
-                "clues": {"1A": "A test clue"},
-            }),
+            data=json.dumps(
+                {
+                    "cells": ["Z", "Z", "Z", "Z", "Z"],
+                    "blocked_out_squares": [],
+                    "name": "",
+                    "description": "",
+                    "clues": {"1A": "A test clue"},
+                }
+            ),
             content_type="application/json",
         )
         word = Word.objects.get(text="ZZZZZ")
-        self.assertEqual(Clue.objects.get(text=word, clue="A test clue").source_crossword, cw)
+        self.assertEqual(
+            Clue.objects.get(text=word, clue="A test clue").source_crossword, cw
+        )
 
     def test_existing_clue_source_crossword_not_overwritten(self):
         # If the clue already exists with a different source_crossword, saving it
         # again from another crossword should leave the original source intact.
         other_cw = make_crossword(num_cols=5, cells=["Z", "Z", "Z", "Z", "Z"])
         word, _ = Word.objects.get_or_create(text="ZZZZZ")
-        clue = Clue.objects.create(text=word, clue="A test clue", source_crossword=other_cw)
+        clue = Clue.objects.create(
+            text=word, clue="A test clue", source_crossword=other_cw
+        )
         cw = make_crossword(num_cols=5, cells=["Z", "Z", "Z", "Z", "Z"])
         self.client.post(
             reverse("crossword_save", args=[cw.pk]),
-            data=json.dumps({
-                "cells": ["Z", "Z", "Z", "Z", "Z"],
-                "blocked_out_squares": [],
-                "name": "",
-                "description": "",
-                "clues": {"1A": "A test clue"},
-            }),
+            data=json.dumps(
+                {
+                    "cells": ["Z", "Z", "Z", "Z", "Z"],
+                    "blocked_out_squares": [],
+                    "name": "",
+                    "description": "",
+                    "clues": {"1A": "A test clue"},
+                }
+            ),
             content_type="application/json",
         )
         clue.refresh_from_db()
@@ -363,21 +393,25 @@ class CrosswordSaveViewTest(TestCase):
         # If a previously complete slot is cleared, the corresponding Entry record
         # should be deleted on the next save. This keeps the Entry table in sync
         # with the actual grid contents.
-        self._save({
-            "cells": ["C", "A", "T"],
-            "blocked_out_squares": [],
-            "name": "",
-            "description": "",
-            "clues": {},
-        })
+        self._save(
+            {
+                "cells": ["C", "A", "T"],
+                "blocked_out_squares": [],
+                "name": "",
+                "description": "",
+                "clues": {},
+            }
+        )
         self.assertEqual(Entry.objects.filter(crossword=self.cw).count(), 1)
-        self._save({
-            "cells": ["", "", ""],
-            "blocked_out_squares": [],
-            "name": "",
-            "description": "",
-            "clues": {},
-        })
+        self._save(
+            {
+                "cells": ["", "", ""],
+                "blocked_out_squares": [],
+                "name": "",
+                "description": "",
+                "clues": {},
+            }
+        )
         self.assertEqual(Entry.objects.filter(crossword=self.cw).count(), 0)
 
 
@@ -385,10 +419,13 @@ class CrosswordSaveViewTest(TestCase):
 # Fetch answers view
 # ---------------------------------------------------------------------------
 
+
 class FetchAnswersViewTest(TestCase):
     """Tests for fetch_answers(): glob matching, pagination, and the
     exclude_from_recommendations filter. Ranking by words_freedom() itself
     is covered separately in cwutils/test.py."""
+
+    fixtures = ["users.json"]
 
     def setUp(self):
         make_user_with_perm(self.client)
@@ -398,13 +435,15 @@ class FetchAnswersViewTest(TestCase):
         # single-row fixture grids.
         return self.client.post(
             reverse("fetch_answers", args=[cw.pk]),
-            data=json.dumps({
-                "cells": cells,
-                "blocked_out_squares": [],
-                "cursor": 0,
-                "direction": ACROSS,
-                "page": page,
-            }),
+            data=json.dumps(
+                {
+                    "cells": cells,
+                    "blocked_out_squares": [],
+                    "cursor": 0,
+                    "direction": ACROSS,
+                    "page": page,
+                }
+            ),
             content_type="application/json",
         )
 
@@ -456,8 +495,11 @@ class FetchAnswersViewTest(TestCase):
 # Permission checks
 # ---------------------------------------------------------------------------
 
+
 class PermissionTest(TestCase):
     """A logged-in user without can_generate_crosswords is redirected from write endpoints."""
+
+    fixtures = ["users.json"]
 
     def setUp(self):
         User.objects.create_user(username="noperm", password="testpass")
@@ -479,13 +521,15 @@ class PermissionTest(TestCase):
         cw = make_crossword()
         response = self.client.post(
             reverse("crossword_save", args=[cw.pk]),
-            data=json.dumps({
-                "cells": ["C", "A", "T"],
-                "blocked_out_squares": [],
-                "name": "",
-                "description": "",
-                "clues": {},
-            }),
+            data=json.dumps(
+                {
+                    "cells": ["C", "A", "T"],
+                    "blocked_out_squares": [],
+                    "name": "",
+                    "description": "",
+                    "clues": {},
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 302)
@@ -496,8 +540,11 @@ class PermissionTest(TestCase):
 # parse_xd
 # ---------------------------------------------------------------------------
 
+
 class ParseXdTest(TestCase):
     """Tests for parse_xd(): the xd-format header/grid/clue parser."""
+
+    fixtures = ["users.json"]
 
     def test_headers_parsed(self):
         # Title/Author/Editor/Copyright headers are read into their
@@ -582,9 +629,12 @@ class ParseXdTest(TestCase):
 # parse_xml
 # ---------------------------------------------------------------------------
 
+
 class ParseXmlTest(TestCase):
     """Tests for parse_xml(): the Crossword Compiler XML parser. Mirrors
     ParseXdTest since both feed the same save_crossword_from_xd() shape."""
+
+    fixtures = ["users.json"]
 
     def test_metadata_parsed(self):
         # <title>/<creator>/<copyright> map to name/authors/copyright; xml
@@ -617,9 +667,12 @@ class ParseXmlTest(TestCase):
     def test_block_type_produces_blocked_square(self):
         # A <cell type="block"/> marks a blocked cell; its index goes into
         # blocked_out_squares and its cell value is "".
-        data = parse_xml(_xml_puzzle(
-            [[("C", False), ("", True), ("T", False)]], [],
-        ))
+        data = parse_xml(
+            _xml_puzzle(
+                [[("C", False), ("", True), ("T", False)]],
+                [],
+            )
+        )
         self.assertEqual(data["grid"], ["C", "", "T"])
         self.assertEqual(data["blocked_out_squares"], [1])
 
@@ -645,16 +698,21 @@ class ParseXmlTest(TestCase):
 # render_xd
 # ---------------------------------------------------------------------------
 
+
 class RenderXdTest(TestCase):
     """Tests for render_xd(): the counterpart to ParseXdTest, checking the
     xd text it produces from a Crossword instance."""
+
+    fixtures = ["users.json"]
 
     def _cw_with_entry(self, **kwargs):
         """1×3 crossword with a single 1A entry, clue 'A feline'."""
         cw = make_crossword(name="Test Puzzle", cells=["C", "A", "T"], **kwargs)
         word, _ = Word.objects.get_or_create(text="CAT")
         clue = Clue.objects.create(text=word, clue="A feline")
-        Entry.objects.create(crossword=cw, word=word, clue=clue, number=1, direction=Entry.ACROSS)
+        Entry.objects.create(
+            crossword=cw, word=word, clue=clue, number=1, direction=Entry.ACROSS
+        )
         return cw
 
     def test_title_header(self):
@@ -710,13 +768,16 @@ class RenderXdTest(TestCase):
 
     def test_down_clue_line(self):
         cw = make_crossword(
-            num_rows=3, num_cols=3,
+            num_rows=3,
+            num_cols=3,
             cells=["C", "A", "T", "A", "", "", "T", "", ""],
             blocked_out_squares=[4, 5, 7, 8],
         )
         word, _ = Word.objects.get_or_create(text="CAT")
         clue = Clue.objects.create(text=word, clue="Feline")
-        Entry.objects.create(crossword=cw, word=word, clue=clue, number=1, direction=Entry.DOWN)
+        Entry.objects.create(
+            crossword=cw, word=word, clue=clue, number=1, direction=Entry.DOWN
+        )
         out = render_xd(cw)
         self.assertIn("D1. Feline ~ CAT", out)
 
@@ -724,7 +785,9 @@ class RenderXdTest(TestCase):
         # An entry with no clue object should still appear with an empty clue field.
         cw = make_crossword(cells=["C", "A", "T"])
         word, _ = Word.objects.get_or_create(text="CAT")
-        Entry.objects.create(crossword=cw, word=word, clue=None, number=1, direction=Entry.ACROSS)
+        Entry.objects.create(
+            crossword=cw, word=word, clue=None, number=1, direction=Entry.ACROSS
+        )
         out = render_xd(cw)
         self.assertIn("A1.  ~ CAT", out)
 
@@ -733,14 +796,19 @@ class RenderXdTest(TestCase):
         # clue, regardless of entry creation order (both are created with
         # the same number 1 here).
         cw = make_crossword(
-            num_rows=3, num_cols=3,
+            num_rows=3,
+            num_cols=3,
             cells=["C", "A", "T", "A", "", "", "T", "", ""],
             blocked_out_squares=[4, 5, 7, 8],
         )
         word, _ = Word.objects.get_or_create(text="CAT")
         clue = Clue.objects.create(text=word, clue="Feline")
-        Entry.objects.create(crossword=cw, word=word, clue=clue, number=1, direction=Entry.ACROSS)
-        Entry.objects.create(crossword=cw, word=word, clue=clue, number=1, direction=Entry.DOWN)
+        Entry.objects.create(
+            crossword=cw, word=word, clue=clue, number=1, direction=Entry.ACROSS
+        )
+        Entry.objects.create(
+            crossword=cw, word=word, clue=clue, number=1, direction=Entry.DOWN
+        )
         out = render_xd(cw)
         self.assertLess(out.index("A1."), out.index("D1."))
 
@@ -749,9 +817,12 @@ class RenderXdTest(TestCase):
 # save_crossword_from_xd
 # ---------------------------------------------------------------------------
 
+
 class SaveCrosswordFromXdTest(TestCase):
     """Tests for save_crossword_from_xd(): building a Crossword (and its
     Word/Clue/Entry rows) from an already-parsed xd dict."""
+
+    fixtures = ["users.json"]
 
     XD_DATA = {
         "name": "Test",
@@ -822,9 +893,12 @@ class SaveCrosswordFromXdTest(TestCase):
 # xd export view
 # ---------------------------------------------------------------------------
 
+
 class CrosswordXdExportViewTest(TestCase):
     """Tests for crossword_xd(): the .xd download endpoint, which is
     intentionally open to everyone regardless of login or permission."""
+
+    fixtures = ["users.json"]
 
     def setUp(self):
         self.cw = make_crossword(name="My Puzzle", cells=["C", "A", "T"])
@@ -864,11 +938,15 @@ class CrosswordXdExportViewTest(TestCase):
     def test_response_contains_title_header(self):
         # Sanity check that the response body is genuinely render_xd()'s
         # output, not just the right status/headers.
-        body = self.client.get(reverse("crossword_xd", args=[self.cw.pk])).content.decode()
+        body = self.client.get(
+            reverse("crossword_xd", args=[self.cw.pk])
+        ).content.decode()
         self.assertIn("Title: My Puzzle", body)
 
     def test_response_contains_clue_line(self):
-        body = self.client.get(reverse("crossword_xd", args=[self.cw.pk])).content.decode()
+        body = self.client.get(
+            reverse("crossword_xd", args=[self.cw.pk])
+        ).content.decode()
         self.assertIn("A1. A feline ~ CAT", body)
 
 
@@ -876,9 +954,12 @@ class CrosswordXdExportViewTest(TestCase):
 # xd import view
 # ---------------------------------------------------------------------------
 
+
 class CrosswordXdImportViewTest(TestCase):
     """Tests for crossword_import(): the .xd upload endpoint, gated behind
     can_generate_crosswords."""
+
+    fixtures = ["users.json"]
 
     def setUp(self):
         make_user_with_perm(self.client)
@@ -953,9 +1034,12 @@ class CrosswordXdImportViewTest(TestCase):
 # xml import view
 # ---------------------------------------------------------------------------
 
+
 class CrosswordXmlImportViewTest(TestCase):
     """Tests for crossword_import()'s xml branch: the X-Filename header
     picks parse_xml over parse_xd when it ends in .xml."""
+
+    fixtures = ["users.json"]
 
     def setUp(self):
         make_user_with_perm(self.client)
@@ -995,7 +1079,9 @@ class CrosswordXmlImportViewTest(TestCase):
         # as xd's line-based grid and is rejected rather than silently
         # misread.
         response = self.client.post(
-            reverse("crossword_import"), data=XML_1ROW, content_type="text/plain; charset=utf-8",
+            reverse("crossword_import"),
+            data=XML_1ROW,
+            content_type="text/plain; charset=utf-8",
         )
         self.assertEqual(response.status_code, 400)
 
@@ -1009,9 +1095,12 @@ class CrosswordXmlImportViewTest(TestCase):
 # Round-trip: parse → save → render → re-parse
 # ---------------------------------------------------------------------------
 
+
 class XdRoundTripTest(TestCase):
     """Parse -> save -> render -> re-parse: checks parse_xd and render_xd
     agree with each other, beyond what testing each in isolation shows."""
+
+    fixtures = ["users.json"]
 
     def test_grid_survives_round_trip(self):
         # After parsing, saving, and re-rendering, the re-parsed grid and blocked
@@ -1040,6 +1129,7 @@ class XdRoundTripTest(TestCase):
 # cwutils — bridges its standalone unittest suite into ./manage.py test
 # ---------------------------------------------------------------------------
 
+
 class CwutilsSuiteTest(unittest.TestCase):
     """cwutils/test.py is written to run standalone from inside cwutils/: it
     imports its sibling cwutils.py as a bare top-level module and opens
@@ -1063,4 +1153,6 @@ class CwutilsSuiteTest(unittest.TestCase):
         if not result.wasSuccessful():
             problems = result.failures + result.errors
             details = "\n".join(f"{test}:\n{trace}" for test, trace in problems)
-            self.fail(f"cwutils test suite: {len(problems)} failure(s)/error(s):\n{details}")
+            self.fail(
+                f"cwutils test suite: {len(problems)} failure(s)/error(s):\n{details}"
+            )
