@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from django.contrib.auth.models import Permission, User
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -218,6 +219,20 @@ class WordModelTest(TestCase):
         # Digits are not allowed even when mixed with uppercase letters.
         with self.assertRaises(ValidationError):
             Word(text="CA7").save()
+
+
+class CrosswordPrivateLinkUniquenessTest(TestCase):
+    """private_link is the sole access control for crossword_private_solve,
+    so the database must reject two rows sharing a value -- this guards
+    against a repeat of the bug where AddField's callable default backfilled
+    every pre-existing row with the same string (see migrations 0013/0014)."""
+
+    fixtures = ["users.json"]
+
+    def test_duplicate_private_link_raises_integrity_error(self):
+        make_crossword(private_link="shared-secret")
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            make_crossword(private_link="shared-secret")
 
 
 # ---------------------------------------------------------------------------

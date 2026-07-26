@@ -116,7 +116,7 @@ class Crossword(models.Model):
         on_delete=models.CASCADE,
     )
     private = models.BooleanField(default=False)
-    private_link = models.CharField(max_length=60, default=random_string)
+    private_link = models.CharField(max_length=60, default=random_string, unique=True)
 
     objects = CrosswordQuerySet.as_manager()
 
