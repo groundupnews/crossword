@@ -8,11 +8,15 @@ class CrosswordCreateForm(forms.ModelForm):
     directly on the model) plus the one real model field, symmetry. Saving
     expands the chosen size into num_rows/num_cols and a blank grid."""
 
-    SIZE_CHOICES = [(5, "5 x 5"), (7, "7 x 7"), (15, "15 x 15"), (19, "19 x 19")]
+    SIZE_CHOICES = [
+        (5, "5 x 5"),
+        (7, "7 x 7"),
+        (9, "9 x 9"),
+        (15, "15 x 15"),
+        (19, "19 x 19"),
+    ]
 
-    size = forms.TypedChoiceField(
-        choices=SIZE_CHOICES, coerce=int, label="Grid size"
-    )
+    size = forms.TypedChoiceField(choices=SIZE_CHOICES, coerce=int, label="Grid size")
 
     class Meta:
         model = Crossword
