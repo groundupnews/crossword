@@ -460,6 +460,47 @@ class CrosswordPrivateSolveViewTest(TestCase):
         self.assertTemplateUsed(response, "crossword/detail.html")
 
 
+class CrosswordEditViewButtonTest(TestCase):
+    """Tests for the "View" link on the edit screen: it should point at the
+    private-link solver only for an unpublished crossword that has a
+    private_link; every other case (published, or no private_link) falls
+    back to the standard solver page."""
+
+    fixtures = ["users.json"]
+
+    def setUp(self):
+        make_user_with_perm(self.client)
+
+    def _view_link(self, cw):
+        response = self.client.get(reverse("crossword_edit", args=[cw.pk]))
+        content = response.content.decode()
+        solve_href = reverse("crossword_solve", args=[cw.pk])
+        private_solve_href = (
+            reverse("crossword_private_solve", args=[cw.private_link])
+            if cw.private_link
+            else None
+        )
+        return solve_href in content, private_solve_href is not None and private_solve_href in content
+
+    def test_unpublished_with_private_link_uses_private_solve(self):
+        cw = make_crossword(published=None)
+        solve_present, private_solve_present = self._view_link(cw)
+        self.assertFalse(solve_present)
+        self.assertTrue(private_solve_present)
+
+    def test_published_uses_standard_solve(self):
+        cw = make_crossword(published=timezone.now() - timedelta(days=1))
+        solve_present, private_solve_present = self._view_link(cw)
+        self.assertTrue(solve_present)
+        self.assertFalse(private_solve_present)
+
+    def test_unpublished_without_private_link_uses_standard_solve(self):
+        cw = make_crossword(published=None, private_link="")
+        solve_present, private_solve_present = self._view_link(cw)
+        self.assertTrue(solve_present)
+        self.assertFalse(private_solve_present)
+
+
 # ---------------------------------------------------------------------------
 # Fetch answers view
 # ---------------------------------------------------------------------------

@@ -50,7 +50,11 @@
       <button id="save-btn" type="button">Save</button>
       <button id="fetch-answers-btn" type="button">Fetch answers</button>
       <button id="fetch-clues-btn" type="button">Fetch clues</button>
+      {% if crossword.is_published or not crossword.private_link %}
       <a href="{% url 'crossword_solve' crossword.pk %}" class="btn-icon">View</a>
+      {% else %}
+      <a href="{% url 'crossword_private_solve' crossword.private_link %}" class="btn-icon">View</a>
+      {% endif %}
     </div>
     <dl class="key-legend">
       <dt><kbd>A–Z</kbd></dt><dd>Type letter</dd>
