@@ -17,6 +17,54 @@ const state = {
 let dirty = false;
 function markDirty() { dirty = true; }
 
+// --- Undo/redo: grid content only (cells/blocks/clues), in-memory for this
+// session -- never persisted, and separate from the dirty/save tracking
+// above. One history entry per discrete action; clue-input edits coalesce
+// into a single entry per slot-visit (committed on blur or when focus moves
+// elsewhere) rather than one entry per keystroke.
+function snapshotState() {
+  return {
+    cells: state.cells.slice(),
+    blocks: new Set(state.blocks),
+    clues: Object.assign({}, state.clues),
+  };
+}
+let history = [snapshotState()];
+let historyIndex = 0;
+let clueEditPending = false;
+
+function pushHistory() {
+  history.length = historyIndex + 1; // drop any redo tail
+  history.push(snapshotState());
+  historyIndex = history.length - 1;
+}
+
+function commitClueEdit() {
+  if (!clueEditPending) return;
+  clueEditPending = false;
+  pushHistory();
+}
+
+function restoreSnapshot(snap) {
+  state.cells = snap.cells.slice();
+  state.blocks = new Set(snap.blocks);
+  state.clues = Object.assign({}, snap.clues);
+  markDirty();
+  render();
+}
+
+function undo() {
+  if (historyIndex === 0) return;
+  historyIndex -= 1;
+  restoreSnapshot(history[historyIndex]);
+}
+
+function redo() {
+  if (historyIndex === history.length - 1) return;
+  historyIndex += 1;
+  restoreSnapshot(history[historyIndex]);
+}
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 const svg = document.getElementById("grid");
 const rows = CW.numRows;
@@ -115,6 +163,7 @@ function nextSlot(forward, slots) {
 // change; the grid is small enough that a full rebuild is simpler than
 // tracking incremental DOM updates.
 function render() {
+  commitClueEdit();
   const slots = computeSlots();
   const numbers = cellNumbers(slots);
   const active = slotAt(state.cursor, state.direction, slots);
@@ -196,9 +245,11 @@ document.getElementById("clue-input").addEventListener("input", (e) => {
   if (e.target.value) state.clues[key] = e.target.value;
   else delete state.clues[key];
   markDirty();
+  clueEditPending = true;
   renderClueList(slots); // refresh list only; don't rebuild grid (keeps focus)
   updateCompletionIndicator(slots);
 });
+document.getElementById("clue-input").addEventListener("blur", commitClueEdit);
 
 // --- Live Across/Down clue list ---
 // Shows every slot, its answer (or pattern with blanks) and attached clue, so
@@ -315,6 +366,7 @@ function toggleBlock(i) {
   apply(i);
   if (CW.nytRules) apply(partner);
   markDirty();
+  pushHistory();
   const pct = (state.blocks.size / (rows * cols) * 100).toFixed(1);
   document.getElementById("blocks-pct").textContent = pct + "% of cells blocked";
 }
@@ -346,12 +398,12 @@ svg.addEventListener("keydown", (e) => {
     render();
   } else if (e.key === "Backspace") {
     e.preventDefault();
-    if (state.cells[state.cursor]) { state.cells[state.cursor] = ""; markDirty(); }
+    if (state.cells[state.cursor]) { state.cells[state.cursor] = ""; markDirty(); pushHistory(); }
     else retreat();
     render();
   } else if (e.key === "Delete") {
     e.preventDefault();
-    if (state.cells[state.cursor]) { state.cells[state.cursor] = ""; markDirty(); }
+    if (state.cells[state.cursor]) { state.cells[state.cursor] = ""; markDirty(); pushHistory(); }
     else advance();
     render();
   } else if (e.key === "ArrowLeft") {
@@ -396,6 +448,7 @@ svg.addEventListener("keydown", (e) => {
     if (!state.blocks.has(state.cursor)) {
       state.cells[state.cursor] = e.key.toUpperCase();
       markDirty();
+      pushHistory();
       advance();
       render();
     }
@@ -539,6 +592,7 @@ async function loadAnswersPage(page) {
   showResults("Answers", data.answers, (word) => {
     slot.indices.forEach((i, k) => (state.cells[i] = word[k]));
     markDirty();
+    pushHistory();
     state.cursor = slot.start;
     render();
   });
@@ -584,6 +638,7 @@ async function doFetchClues() {
   showResults("Clues", data.clues, (clue) => {
     state.clues[slotKey(slot)] = clue;
     markDirty();
+    pushHistory();
     document.getElementById("clue-input").value = clue;
   });
 }
@@ -593,9 +648,9 @@ document.getElementById("fetch-clues-btn").addEventListener("click", doFetchClue
 
 // Global shortcuts that apply regardless of which element has focus:
 // Ctrl+S saves, Ctrl+G toggles focus between the clue input and the grid,
-// Escape dismisses the results pane, and Home/End jump the cursor to the
-// first/last cell (skipped while a text input/textarea has focus, so it
-// doesn't fight with normal text-editing behaviour).
+// Escape dismisses the results pane, and Home/End/Ctrl+Z/Ctrl+Y (skipped
+// while a text input/textarea has focus, so they don't fight with normal
+// text-editing behaviour, including that field's own native undo).
 document.addEventListener("keydown", (e) => {
   if (e.key === "s" && e.ctrlKey) {
     e.preventDefault();
@@ -615,6 +670,14 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     setCursor(e.key === "Home" ? 0 : rows * cols - 1);
     svg.focus();
+  } else if (e.ctrlKey && e.key.toLowerCase() === "z") {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+    e.preventDefault();
+    undo();
+  } else if (e.ctrlKey && e.key.toLowerCase() === "y") {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+    e.preventDefault();
+    redo();
   }
 });
 
