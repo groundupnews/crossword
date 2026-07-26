@@ -63,7 +63,7 @@ class CrosswordSelectView(ListView):
         # Restricts the list to published crosswords for anyone without the
         # generate permission; generators see everything except other users'
         # private, unpublished drafts.
-        qs = super().get_queryset()
+        qs = super().get_queryset().select_related("owner")
         user = self.request.user
         if not user.has_perm(PERM):
             qs = qs.published()

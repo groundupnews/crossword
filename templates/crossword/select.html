@@ -17,6 +17,7 @@
     <tr>
       {% if perms.crossword.can_generate_crosswords %}<th>ID</th>{% endif %}
       <th>Name</th>
+      {% if perms.crossword.can_generate_crosswords %}<th>Owner</th>{% endif %}
       {% if not perms.crossword.can_generate_crosswords %}<th>Published</th>{% endif %}
       <th></th>
       {% if perms.crossword.can_generate_crosswords %}
@@ -33,6 +34,7 @@
       <td class="cw-name">
         <a href="{% url 'crossword_solve' crossword.pk %}">{{ crossword.name|default:"Untitled" }}</a>
       </td>
+      {% if perms.crossword.can_generate_crosswords %}<td class="cw-owner">{{ crossword.owner.username }}</td>{% endif %}
       {% if not perms.crossword.can_generate_crosswords %}<td>{{ crossword.published|date:"Y-m-d" }}</td>{% endif %}
       <td><a href="{% url 'crossword_xd' crossword.pk %}"><i class="fa-solid fa-download"></i> Export</a></td>
       {% if perms.crossword.can_generate_crosswords %}
