@@ -25,6 +25,15 @@ from .xml_format import parse_xml
 PERM = "crossword.can_generate_crosswords"
 
 
+def _clues_by_slot(crossword):
+    """Map '1A'/'1D'-style slot labels to clue text, for slots that have one."""
+    return {
+        f"{e.number}{e.direction}": e.clue.clue
+        for e in crossword.entries.select_related("clue")
+        if e.clue
+    }
+
+
 class CrosswordCreateView(PermissionRequiredMixin, CreateView):
     permission_required = PERM
     """Add a new crossword.
@@ -79,15 +88,10 @@ def crossword_edit(request, pk):
     crossword = get_object_or_404(Crossword, pk=pk)
     if crossword.private and crossword.owner_id != request.user.id:
         raise Http404
-    clues = {
-        f"{e.number}{e.direction}": e.clue.clue
-        for e in crossword.entries.select_related("clue")
-        if e.clue
-    }
     return render(
         request,
         "crossword/edit.html",
-        {"crossword": crossword, "clues": clues},
+        {"crossword": crossword, "clues": _clues_by_slot(crossword)},
     )
 
 
@@ -190,12 +194,28 @@ def crossword_solve(request, pk):
     crossword = get_object_or_404(Crossword, pk=pk)
     if not crossword.is_published() and not request.user.has_perm(PERM):
         raise Http404
-    clues = {
-        f"{e.number}{e.direction}": e.clue.clue
-        for e in crossword.entries.select_related("clue")
-        if e.clue
-    }
-    return render(request, "crossword/detail.html", {"crossword": crossword, "clues": clues})
+    return render(
+        request,
+        "crossword/detail.html",
+        {"crossword": crossword, "clues": _clues_by_slot(crossword)},
+    )
+
+
+def crossword_private_solve(request, private_link):
+    """Detail/solver view for an unpublished crossword's secret link.
+
+    No permission check: knowing the link is the only access control.
+    Once the crossword is published, the link just forwards to the
+    standard solver page instead of continuing to serve its own copy.
+    """
+    crossword = get_object_or_404(Crossword, private_link=private_link)
+    if crossword.is_published():
+        return redirect("crossword_solve", pk=crossword.pk)
+    return render(
+        request,
+        "crossword/detail.html",
+        {"crossword": crossword, "clues": _clues_by_slot(crossword)},
+    )
 
 
 @permission_required(PERM)

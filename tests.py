@@ -2,11 +2,13 @@ import json
 import os
 import string
 import unittest
+from datetime import timedelta
 
 from django.contrib.auth.models import Permission, User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from .grid import ACROSS, DOWN, slots
 from .models import Clue, Crossword, Entry, Word
@@ -413,6 +415,49 @@ class CrosswordSaveViewTest(TestCase):
             }
         )
         self.assertEqual(Entry.objects.filter(crossword=self.cw).count(), 0)
+
+
+# ---------------------------------------------------------------------------
+# Private-link solve view
+# ---------------------------------------------------------------------------
+
+
+class CrosswordPrivateSolveViewTest(TestCase):
+    """Tests for crossword_private_solve(): the secret-link solver page for
+    unpublished crosswords. No permission is required to use the link, but
+    once the crossword is published the link just forwards to the normal
+    solver page instead of continuing to serve its own copy."""
+
+    fixtures = ["users.json"]
+
+    def test_anonymous_user_can_solve_unpublished_crossword(self):
+        cw = make_crossword(published=None)
+        response = self.client.get(
+            reverse("crossword_private_solve", args=[cw.private_link])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "crossword/detail.html")
+
+    def test_unknown_private_link_returns_404(self):
+        response = self.client.get(
+            reverse("crossword_private_solve", args=["does-not-exist"])
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_published_crossword_redirects_to_standard_solver(self):
+        cw = make_crossword(published=timezone.now() - timedelta(days=1))
+        response = self.client.get(
+            reverse("crossword_private_solve", args=[cw.private_link])
+        )
+        self.assertRedirects(response, reverse("crossword_solve", args=[cw.pk]))
+
+    def test_future_published_crossword_still_served_directly(self):
+        cw = make_crossword(published=timezone.now() + timedelta(days=1))
+        response = self.client.get(
+            reverse("crossword_private_solve", args=[cw.private_link])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "crossword/detail.html")
 
 
 # ---------------------------------------------------------------------------
