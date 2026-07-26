@@ -1,3 +1,5 @@
+import random
+import string
 from django.core.validators import RegexValidator
 from django.db import models
 from django.urls import reverse
@@ -78,6 +80,10 @@ def default_copyright():
     return f"(C) {timezone.now().year} GroundUp News"
 
 
+def random_string(size=60, chars=string.ascii_letters + string.digits):
+    return "".join(random.SystemRandom().choice(chars) for _ in range(size))
+
+
 class CrosswordQuerySet(models.QuerySet):
     def published(self):
         """Crosswords with a publication datetime that has already passed.
@@ -110,6 +116,7 @@ class Crossword(models.Model):
         on_delete=models.CASCADE,
     )
     private = models.BooleanField(default=False)
+    private_link = models.CharField(max_length=60, default=random_string)
 
     objects = CrosswordQuerySet.as_manager()
 
