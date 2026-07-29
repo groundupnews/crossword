@@ -544,8 +544,10 @@ function activeSlot() {
 // answers and fetched clues): a title, a list of clickable items -- each
 // wired to `onPick` -- and a "No matches" placeholder when the list is
 // empty. Resets/hides the pager; callers that need pagination re-show it
-// afterwards.
-function showResults(title, items, onPick) {
+// afterwards. `metrics`, when given, is a same-length array of {worst, mean}
+// (or null) rendered as extra columns next to each item, shown/hidden by the
+// "show-metrics" class on the list (toggled by the calculator button).
+function showResults(title, items, onPick, metrics) {
   const pane = document.getElementById("results-pane");
   const list = document.getElementById("results-list");
   document.getElementById("results-title").textContent = title;
@@ -556,18 +558,37 @@ function showResults(title, items, onPick) {
     li.textContent = "No matches";
     list.appendChild(li);
   }
-  for (const item of items) {
+  items.forEach((item, i) => {
     const li = document.createElement("li");
-    li.textContent = item;
+    if (metrics) {
+      const m = metrics[i] || {};
+      const word = document.createElement("span");
+      word.className = "answer-word";
+      word.textContent = item;
+      const worst = document.createElement("span");
+      worst.className = "answer-worst";
+      worst.textContent = m.worst != null ? m.worst : "—";
+      const mean = document.createElement("span");
+      mean.className = "answer-mean";
+      mean.textContent = m.mean != null ? m.mean.toFixed(2) : "—";
+      li.append(word, worst, mean);
+    } else {
+      li.textContent = item;
+    }
     li.addEventListener("click", () => onPick(item));
     list.appendChild(li);
-  }
+  });
   pane.hidden = false;
 }
 
 // Tracks the pattern/slot/page behind the answers pane so the pager
 // buttons can re-fetch without redoing activeSlot().
 let answersQuery = null;
+
+// Toggled by the (staff-only) calculator button; persists across pages of
+// the same query since it lives on #results-list's class, untouched by
+// showResults()'s innerHTML reset.
+const metricsBtn = document.getElementById("answer-metrics-btn");
 
 // Fetches one page of ranked answer candidates for the slot recorded in
 // `answersQuery`, renders them into the results pane (picking a result fills
@@ -589,13 +610,22 @@ async function loadAnswersPage(page) {
   const data = await resp.json();
   answersQuery.page = data.page;
   answersQuery.totalPages = data.total_pages;
-  showResults("Answers", data.answers, (word) => {
-    slot.indices.forEach((i, k) => (state.cells[i] = word[k]));
-    markDirty();
-    pushHistory();
-    state.cursor = slot.start;
-    render();
-  });
+  if (metricsBtn) {
+    metricsBtn.hidden = false;
+    metricsBtn.disabled = data.answers.length === 0;
+  }
+  showResults(
+    "Answers",
+    data.answers,
+    (word) => {
+      slot.indices.forEach((i, k) => (state.cells[i] = word[k]));
+      markDirty();
+      pushHistory();
+      state.cursor = slot.start;
+      render();
+    },
+    data.metrics
+  );
 
   const pager = document.getElementById("results-pager");
   if (data.total_pages > 1) {
@@ -623,6 +653,15 @@ document.getElementById("results-next").addEventListener("click", () => {
   if (answersQuery && answersQuery.page < answersQuery.totalPages) loadAnswersPage(answersQuery.page + 1);
 });
 
+// Calculator button: toggles the worst/mean freedom columns next to each
+// fetched answer (see showResults()'s "show-metrics" class).
+if (metricsBtn) {
+  metricsBtn.addEventListener("click", () => {
+    const showing = metricsBtn.classList.toggle("active");
+    document.getElementById("results-list").classList.toggle("show-metrics", showing);
+  });
+}
+
 // Entry point for the "Fetch clues" button / "]" shortcut: builds the
 // current word for the active slot (empty string if any cell is still
 // blank, so the server returns no matches for an incomplete answer) and
@@ -635,6 +674,7 @@ async function doFetchClues() {
   const url = CW.fetchCluesUrl + "?word=" + encodeURIComponent(word);
   const resp = await fetch(url);
   const data = await resp.json();
+  if (metricsBtn) metricsBtn.hidden = true;
   showResults("Clues", data.clues, (clue) => {
     state.clues[slotKey(slot)] = clue;
     markDirty();

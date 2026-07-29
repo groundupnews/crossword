@@ -589,8 +589,32 @@ button:focus-visible {
   display: flex;
 }
 
-.results-pane h2 {
+.results-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   flex: none;
+}
+
+.results-pane-header h2 {
+  margin: 0;
+}
+
+#answer-metrics-btn {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.8rem;
+}
+
+#answer-metrics-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+#answer-metrics-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 /* Scrolls independently so the pager below it (outside this element)
@@ -610,10 +634,31 @@ button:focus-visible {
   border: none;
   border-radius: 5px;
   cursor: pointer;
+  display: flex;
+  gap: 0.75rem;
 }
 
 .results-pane li:hover {
   background: var(--accent-soft);
+}
+
+.answer-word {
+  flex: 1 1 auto;
+}
+
+.answer-worst,
+.answer-mean {
+  display: none;
+  flex: none;
+  width: 2.5rem;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+#results-list.show-metrics .answer-worst,
+#results-list.show-metrics .answer-mean {
+  display: inline-block;
 }
 
 .results-pager {
