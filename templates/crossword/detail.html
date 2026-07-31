@@ -112,6 +112,7 @@
 {{ clues|json_script:"cw-clues" }}
 <script>
   window.CROSSWORD = {
+    pk: {{ crossword.pk }},
     numRows: {{ crossword.num_rows }},
     numCols: {{ crossword.num_cols }},
     blocks: JSON.parse(document.getElementById("cw-blocks").textContent),
@@ -121,5 +122,5 @@
     csrfToken: "{{ csrf_token }}",
   };
 </script>
-<script src="{% static 'crossword/solver.js' %}?v=40"></script>
+<script src="{% static 'crossword/solver.js' %}?v=41"></script>
 {% endblock %}

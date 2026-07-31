@@ -105,6 +105,57 @@ function nextSlot(forward, slots) {
   }
 }
 
+// --- Persistence: solver progress is saved to localStorage per puzzle, so
+// reloading or returning to a puzzle later restores exactly where the
+// solver left off, including any errors they've been marked wrong for. ---
+const STORAGE_KEY = `crossword-solver-${CW.pk}`;
+
+function saveState() {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        cells: state.cells,
+        checked: state.checked,
+        indicators: state.indicators,
+        completed: state.completed,
+        cursor: state.cursor,
+        direction: state.direction,
+        timerSeconds,
+      })
+    );
+  } catch (_) {
+    // Storage unavailable (private browsing, quota, etc.) -- solving still
+    // works, it just won't be restored next time.
+  }
+}
+
+// Restores solver progress saved from a previous visit to this puzzle, if
+// any. Returns true if state was restored, false if there was nothing to
+// restore or it no longer matches this puzzle's grid (e.g. the puzzle was
+// edited since), in which case the caller falls back to a fresh start.
+function loadState() {
+  let saved;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    saved = JSON.parse(raw);
+  } catch (_) {
+    return false;
+  }
+  if (!saved || !Array.isArray(saved.cells) || saved.cells.length !== rows * cols) {
+    return false;
+  }
+  state.cells = saved.cells;
+  state.checked = saved.checked || {};
+  state.indicators = saved.indicators || {};
+  state.completed = !!saved.completed;
+  if (Number.isInteger(saved.cursor)) state.cursor = saved.cursor;
+  if (saved.direction === ACROSS || saved.direction === DOWN) state.direction = saved.direction;
+  if (Number.isInteger(saved.timerSeconds)) timerSeconds = saved.timerSeconds;
+  return true;
+}
+
 // --- Rendering ---
 // Rebuilds the whole SVG grid from scratch: cell rects, block styling,
 // cursor/active-slot highlighting, cell numbers, entered letters, and the
@@ -168,6 +219,7 @@ function render() {
   }
   updateClueDisplay(active);
   renderClueList(slots, active);
+  saveState();
 }
 
 // Shows the active slot's key (e.g. "1A") and its clue text (looked up from
@@ -541,6 +593,7 @@ async function autoCheckIfComplete() {
     const wrongCount = Object.values(state.checked).filter(v => v === "wrong").length;
     const pct = Math.round((totalWhite - wrongCount) / totalWhite * 100);
     showMessage(`Crossword completed. You scored ${pct}%.`, "success");
+    saveState();
   } else {
     showMessage("The crossword has some wrong answers.", "error");
   }
@@ -643,17 +696,25 @@ document.getElementById("timer-toggle").addEventListener("click", () => {
   document.getElementById("timer-toggle").textContent = hidden ? "Show" : "Hide";
 });
 
-// Ticks once a second, formatting elapsed time as HH:MM:SS. Stopped by
-// autoCheckIfComplete() once the puzzle is solved.
-const timerInterval = setInterval(() => {
-  timerSeconds++;
-  const h = Math.floor(timerSeconds / 3600);
-  const m = Math.floor((timerSeconds % 3600) / 60);
-  const s = timerSeconds % 60;
-  timerValueEl.textContent =
+// Formats a duration in seconds as HH:MM:SS.
+function formatElapsed(totalSeconds) {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return (
     String(h).padStart(2, "0") + ":" +
     String(m).padStart(2, "0") + ":" +
-    String(s).padStart(2, "0");
+    String(s).padStart(2, "0")
+  );
+}
+
+// Ticks once a second. Stopped by autoCheckIfComplete() once the puzzle is
+// solved. Saves state each tick too, so the elapsed time stays accurate on
+// restore even if the solver hasn't typed anything for a while.
+const timerInterval = setInterval(() => {
+  timerSeconds++;
+  timerValueEl.textContent = formatElapsed(timerSeconds);
+  saveState();
 }, 1000);
 
 // Prev/next-slot buttons: on-screen equivalents of Shift+Tab / Tab, for
@@ -682,14 +743,25 @@ document.getElementById("next-slot-btn").addEventListener("click", () => {
   }
 });
 
-// Starts the solver on the first Across slot (if any) rather than cell 0,
-// so opening a puzzle with a leading block doesn't leave the cursor stuck
-// on a cell that isn't part of any slot.
-const _initSlots = computeSlots();
-const _firstAcross = _initSlots.find((s) => s.direction === ACROSS);
-if (_firstAcross) {
-  state.cursor = _firstAcross.start;
-  state.direction = ACROSS;
+// Restores progress saved from a previous visit to this puzzle, if any.
+// Otherwise starts the solver on the first Across slot (if any) rather than
+// cell 0, so opening a puzzle with a leading block doesn't leave the cursor
+// stuck on a cell that isn't part of any slot.
+if (loadState()) {
+  timerValueEl.textContent = formatElapsed(timerSeconds);
+  if (state.completed) {
+    clearInterval(timerInterval);
+    document.getElementById("check-btn").closest(".check-dropdown").style.display = "none";
+    document.getElementById("reveal-btn").closest(".check-dropdown").style.display = "none";
+    document.getElementById("sound-btn").style.display = "none";
+  }
+} else {
+  const _initSlots = computeSlots();
+  const _firstAcross = _initSlots.find((s) => s.direction === ACROSS);
+  if (_firstAcross) {
+    state.cursor = _firstAcross.start;
+    state.direction = ACROSS;
+  }
 }
 render();
 svg.focus();
