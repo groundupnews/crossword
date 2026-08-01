@@ -78,7 +78,13 @@ class Slot:
         for i in range(self.start + step, self.start + len(self) * step, step):
             s += " " + str(i)
         s += f") [{len(self)}]"
-        return s
+        return s[:-1]
+
+    def complete(self):
+        for i in self.cells:
+            if self.grid.cells[i] == "-":
+                return False
+        return True
 
     def intersections(self):
         """The perpendicular slot crossing each of this slot's cells, in
@@ -148,6 +154,7 @@ class Slot:
         Returns a list of (word, scores) tuples. See fetch_algorirthm.md
         for the original pseudocode this replaced.
         """
+
         def min_no_error(lst):
             try:
                 return min(lst)
@@ -183,6 +190,11 @@ class Slot:
             arr, key=lambda tpl: (min_no_error(tpl[1]), mean(tpl[1])), reverse=True
         )
         return arr
+
+    def fill(self, word):
+        assert len(word) == self._len
+        for i in range(self._len):
+            self.grid.cells[self.cells[i]] = word[i]
 
 
 class Grid:
@@ -230,7 +242,7 @@ class Grid:
             for c in range(self.cols):
                 result += self.cells[self._I(r, c)]
             result += "\n"
-        return result[:-1]
+        return result
 
     def calc_slots(self):
         """Builds every Slot in the grid, numbered and ordered the way
@@ -288,3 +300,35 @@ class Grid:
             if slot.dir == dir and cell in slot.cells:
                 return slot
         return None
+
+    def copy(self):
+        return Grid(str(self), self.words)
+
+    def complete(self):
+        for s in self.slots:
+            if s.complete() is False:
+                return False
+        return True
+
+
+MAX_ATTEMPTS = 100
+
+
+def auto_complete(grid, attempt=0):
+    g = grid.copy()
+    if attempt >= MAX_ATTEMPTS:
+        print("Returning g because attempt overflow", attempt)
+        return g
+    slots = [s for s in g.slots if not s.complete()]
+    for s in slots:
+        if s.complete():
+            continue
+        words = [w[0] for w in s.words_freedom() if w[1][0] > 0]
+        for word in words:
+            s.fill(word)
+            h = auto_complete(g, attempt + 1)
+            if h.complete():
+                print("Returning h", attempt)
+                return h
+    print("Returning g", attempt)
+    return g

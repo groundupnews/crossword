@@ -1,5 +1,5 @@
 import unittest
-from cwutils import Grid, Slot
+from cwutils import Grid, Slot, auto_complete
 import re
 
 WORD_RE = re.compile(r"^[A-Z]+$")
@@ -35,9 +35,18 @@ OGLED
 #---#
 """
 
+    cw3 = """
+#BI-#
+BIERS
+ON#IS
+OGLED
+#OO-#
+"""
+
     def setUp(self):
         self.grid1 = Grid(self.cw1, get_words())
         self.grid2 = Grid(self.cw2, get_words())
+        self.grid3 = Grid(self.cw3, get_words())
 
     def test_grid(self):
         # Both grids share the dictionary and the same dimensions, but
@@ -50,6 +59,12 @@ OGLED
         self.assertEqual(self.grid2.cols, 5)
         self.assertEqual(self.grid1.words, self.grid2.words)
         self.assertNotEqual(self.grid1.slots, self.grid2.slots)
+
+    def test_copy(self):
+        grid_copy = Grid(str(self.grid1), get_words())
+        self.assertEqual(grid_copy.cells, self.grid1.cells)
+        grid_copy = self.grid3.copy()
+        self.assertEqual(grid_copy.cells, self.grid3.cells)
 
     def test_slots(self):
         # Walks every slot cwutils finds in cw1, checking its id,
@@ -172,6 +187,11 @@ OGLED
         i = self.grid1.slots[3].intersecting_cell_index(intersections[1])
         self.assertEqual(i, (1, 1))
 
+    def test_complete_check(self):
+        incomplete_slots = [s for s in self.grid3.slots if not s.complete()]
+        self.assertEqual(len(self.grid3.slots), 12)
+        self.assertEqual(len(incomplete_slots), 3)
+
 
 class TestMatching(unittest.TestCase):
     """Tests glob()/words() against the real dictionary, using a grid with
@@ -289,6 +309,44 @@ class TestWordsFreedom(unittest.TestCase):
             across.words_freedom(),
             [("ABD", [1, 1, 5]), ("ABC", [1, 1, 2])],
         )
+
+
+class TestAutoComplete(unittest.TestCase):
+    cw1 = """
+#BI-#
+BIERS
+ON#IS
+OGLED
+#OO-#
+"""
+
+    cw2 = """
+#BIB#
+BIERS
+ON#IS
+OGLED
+#OOF#
+"""
+
+    cw3 = """
+#---#
+-----
+--#--
+-----
+#---#
+"""
+
+    def setUp(self):
+        self.grid1 = Grid(self.cw1, get_words())
+        self.grid1.words.append("OOF")
+        self.grid2 = Grid(self.cw3, get_words())
+
+    def test_auto_complete(self):
+        g = auto_complete(self.grid1)
+        self.assertTrue(g.complete())
+        self.assertEqual(g.cells, Grid(self.cw2, get_words()).cells)
+        g = auto_complete(self.grid2)
+        print(g)
 
 
 if __name__ == "__main__":
