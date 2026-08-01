@@ -50,6 +50,9 @@
       <button id="save-btn" type="button">Save</button>
       <button id="fetch-answers-btn" type="button">Fetch answers</button>
       <button id="fetch-clues-btn" type="button">Fetch clues</button>
+      <button id="autocomplete-btn" type="button" title="Autocomplete">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+      </button>
       {% if crossword.is_published or not crossword.private_link %}
       <a href="{% url 'crossword_solve' crossword.pk %}" class="btn-icon">View</a>
       {% else %}

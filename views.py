@@ -20,8 +20,6 @@ from .models import Clue, Crossword, Entry, Word
 from .xd import parse_xd, render_xd, save_crossword_from_xd
 from .xml_format import parse_xml
 
-# Nathan not to self: I've reviewed this but not closely.
-
 PERM = "crossword.can_generate_crosswords"
 
 
