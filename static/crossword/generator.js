@@ -17,6 +17,10 @@ const state = {
 let dirty = false;
 function markDirty() { dirty = true; }
 
+// Set while the autocomplete modal is up; lets the AbortController be
+// reached from the Cancel button and the document keydown guard below.
+let autoCompleteAbort = null;
+
 // --- Undo/redo: grid content only (cells/blocks/clues), in-memory for this
 // session -- never persisted, and separate from the dirty/save tracking
 // above. One history entry per discrete action; clue-input edits coalesce
@@ -277,13 +281,19 @@ function renderClueList(slots) {
   }
 }
 
+// True once every slot's cells are lettered (clues aside). Shared by the
+// completion indicator and the autocomplete button's "already done" check.
+function slotsComplete(slots) {
+  return slots.length > 0 && slots.every(s => s.indices.every(i => state.cells[i]));
+}
+
 // --- Completion indicator ---
 // Shows a check mark only when every slot is fully lettered AND every slot
 // has a clue attached; otherwise shows a cross. Reflects live in-memory
 // state, not the last save.
 function updateCompletionIndicator(slots) {
   const el = document.getElementById("completion-indicator");
-  const allComplete = slots.length > 0 && slots.every(s => s.indices.every(i => state.cells[i]));
+  const allComplete = slotsComplete(slots);
   const allHaveClues = allComplete && slots.every(s => state.clues[slotKey(s)]);
   const done = allComplete && allHaveClues;
   el.innerHTML = done ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-xmark"></i>';
@@ -686,12 +696,72 @@ async function doFetchClues() {
 document.getElementById("fetch-answers-btn").addEventListener("click", doFetchAnswers);
 document.getElementById("fetch-clues-btn").addEventListener("click", doFetchClues);
 
+// --- Autocomplete (magic wand) ---
+// Sends the live grid to cwutils' backtracking solver and applies whatever
+// it comes back with in one shot, so undo/redo treats the whole fill as a
+// single action. Short-circuits if every slot is already lettered, and
+// flags via #warning when the solver couldn't complete the grid.
+//
+// While the request is in flight, #autocomplete-modal blocks all pointer
+// input (it's a full-screen overlay, same trick as #exit-modal) and the
+// document keydown guard below blocks keyboard shortcuts; blurring the
+// previously-focused element stops the grid/clue-input's own keydown
+// listeners from firing. Cancel aborts the fetch -- the client stops
+// waiting, but cwutils keeps searching server-side until it finishes on its
+// own; the discarded result just never comes back.
+document.getElementById("autocomplete-btn").addEventListener("click", async () => {
+  const warningEl = document.getElementById("warning");
+  const slots = computeSlots();
+  if (slotsComplete(slots)) {
+    warningEl.textContent = "Crossword is already complete.";
+    warningEl.hidden = false;
+    return;
+  }
+  const modal = document.getElementById("autocomplete-modal");
+  document.activeElement.blur();
+  modal.hidden = false;
+  autoCompleteAbort = new AbortController();
+  try {
+    const resp = await fetch(CW.autoCompleteUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": CW.csrfToken },
+      body: JSON.stringify({
+        cells: state.cells,
+        blocked_out_squares: Array.from(state.blocks),
+      }),
+      signal: autoCompleteAbort.signal,
+    });
+    const data = await resp.json();
+    state.cells = data.cells;
+    markDirty();
+    pushHistory();
+    render();
+    if (!data.complete) {
+      warningEl.textContent = "Autocomplete couldn't find a solution.";
+      warningEl.hidden = false;
+    }
+  } catch (err) {
+    if (err.name !== "AbortError") throw err;
+  } finally {
+    modal.hidden = true;
+    autoCompleteAbort = null;
+  }
+});
+
+document.getElementById("autocomplete-cancel").addEventListener("click", () => {
+  if (autoCompleteAbort) autoCompleteAbort.abort();
+});
+
 // Global shortcuts that apply regardless of which element has focus:
 // Ctrl+S saves, Ctrl+G toggles focus between the clue input and the grid,
 // Escape dismisses the results pane, and Home/End/Ctrl+Z/Ctrl+Y (skipped
 // while a text input/textarea has focus, so they don't fight with normal
 // text-editing behaviour, including that field's own native undo).
 document.addEventListener("keydown", (e) => {
+  if (!document.getElementById("autocomplete-modal").hidden) {
+    if (e.key === "Escape" && autoCompleteAbort) autoCompleteAbort.abort();
+    return;
+  }
   if (e.key === "s" && e.ctrlKey) {
     e.preventDefault();
     document.getElementById("save-btn").click();

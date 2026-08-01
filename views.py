@@ -15,6 +15,7 @@ from django.views.generic import CreateView, ListView
 
 from . import grid
 from .cwutils.cwutils import Grid as CwutilsGrid
+from .cwutils.cwutils import auto_complete as cwutils_auto_complete
 from .forms import CrosswordCreateForm
 from .models import Clue, Crossword, Entry, Word
 from .xd import parse_xd, render_xd, save_crossword_from_xd
@@ -379,6 +380,37 @@ def fetch_answers(request, pk):
         "page": page,
         "total_pages": total_pages,
     })
+
+
+@permission_required(PERM)
+@require_POST
+def crossword_auto_complete(request, pk):
+    """Try to fill every remaining blank cell via cwutils' depth-first
+    auto_complete search, using the live (possibly unsaved) grid state.
+
+    Accepts JSON: cells, blocked_out_squares. Returns `cells` reflecting
+    whatever cwutils came up with (unchanged from the input where it
+    couldn't complete a slot) and a `complete` flag for whether every slot
+    ended up filled.
+    """
+    crossword = get_object_or_404(Crossword, pk=pk)
+    payload = json.loads(request.body)
+    cells = payload.get("cells", [])
+    blocked = set(payload.get("blocked_out_squares", []))
+
+    grid_string = _cwutils_grid_string(crossword.num_rows, crossword.num_cols, blocked, cells)
+    words = list(
+        Word.objects.exclude(exclude_from_recommendations=True)
+        .order_by("text")
+        .values_list("text", flat=True)
+    )
+    solved = cwutils_auto_complete(CwutilsGrid(grid_string, words))
+
+    result_cells = [
+        "" if i in blocked else ("" if letter == "-" else letter)
+        for i, letter in enumerate(solved.cells)
+    ]
+    return JsonResponse({"cells": result_cells, "complete": solved.complete()})
 
 
 @permission_required(PERM)

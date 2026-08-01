@@ -119,6 +119,7 @@
     saveUrl: "{% url 'crossword_save' crossword.pk %}",
     fetchAnswersUrl: "{% url 'fetch_answers' crossword.pk %}",
     fetchCluesUrl: "{% url 'fetch_clues' crossword.pk %}",
+    autoCompleteUrl: "{% url 'crossword_auto_complete' crossword.pk %}",
     csrfToken: "{{ csrf_token }}"
   };
 </script>
@@ -131,5 +132,13 @@
     </div>
   </div>
 </div>
-<script src="{% static 'crossword/generator.js' %}?v=30"></script>
+<div id="autocomplete-modal" class="modal-overlay" hidden>
+  <div class="modal">
+    <p>Auto-completing&hellip;</p>
+    <div class="modal-buttons">
+      <button id="autocomplete-cancel" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+<script src="{% static 'crossword/generator.js' %}?v=32"></script>
 {% endblock %}

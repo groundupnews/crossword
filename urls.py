@@ -12,6 +12,7 @@ urlpatterns = [
     path("<int:pk>/edit/", views.crossword_edit, name="crossword_edit"),
     path("<int:pk>/save/", views.crossword_save, name="crossword_save"),
     path("<int:pk>/fetch-answers/", views.fetch_answers, name="fetch_answers"),
+    path("<int:pk>/auto-complete/", views.crossword_auto_complete, name="crossword_auto_complete"),
     path("<int:pk>/fetch-clues/", views.fetch_clues, name="fetch_clues"),
     path("<int:pk>/xd/", views.crossword_xd, name="crossword_xd"),
     path("<int:pk>/delete/", views.crossword_delete, name="crossword_delete"),
