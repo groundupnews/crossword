@@ -529,6 +529,7 @@ document.getElementById("save-btn").addEventListener("click", async () => {
       ? localISOWithOffset(document.getElementById("cw-published").value)
       : null,
     private: document.getElementById("cw-private").checked,
+    requires_rotational_symmetry: document.getElementById("cw-rotational-symmetry").checked,
     clues: state.clues,
   };
   const resp = await fetch(CW.saveUrl, {
@@ -839,6 +840,7 @@ document.getElementById("blocks-pct").textContent =
   document.getElementById(id).addEventListener("input", markDirty);
 });
 document.getElementById("cw-private").addEventListener("change", markDirty);
+document.getElementById("cw-rotational-symmetry").addEventListener("change", markDirty);
 
 // Triggers the browser's native "leave site?" confirmation on tab close/
 // reload when there are unsaved changes.

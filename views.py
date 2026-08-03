@@ -223,9 +223,9 @@ def crossword_save(request, pk):
     """Save the grid for the given crossword.
 
     Accepts a JSON body: cells, blocked_out_squares, name, description,
-    clues ({"1A": "clue text", ...}). cells is the source of truth and is
-    always saved. Entry rows are derived from the complete slots; partial
-    slots touch nothing but cells.
+    requires_rotational_symmetry, clues ({"1A": "clue text", ...}). cells is
+    the source of truth and is always saved. Entry rows are derived from the
+    complete slots; partial slots touch nothing but cells.
     """
     crossword = get_object_or_404(Crossword, pk=pk)
     if crossword.private and crossword.owner_id != request.user.id:
@@ -241,6 +241,7 @@ def crossword_save(request, pk):
         crossword.editors = payload.get("editors", "")
         crossword.copyright = payload.get("copyright", "")
         crossword.private = payload.get("private", False)
+        crossword.requires_rotational_symmetry = payload.get("requires_rotational_symmetry", True)
         published_str = payload.get("published") or ""
         if published_str:
             dt = datetime.fromisoformat(published_str)

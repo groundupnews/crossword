@@ -17,6 +17,10 @@
   <label class="checkbox-label">Private
     <input type="checkbox" id="cw-private" {% if crossword.private %}checked{% endif %}>
   </label>
+  <label class="checkbox-label">Rotational symmetry
+    <input type="checkbox" id="cw-rotational-symmetry"
+           {% if crossword.requires_rotational_symmetry %}checked{% endif %}>
+  </label>
   <label>Published
     <input type="datetime-local" id="cw-published"
            value="{{ crossword.published|date:'Y-m-d\TH:i'|default:'' }}">
@@ -115,7 +119,7 @@
     cells: JSON.parse(document.getElementById("cw-cells").textContent),
     blocks: JSON.parse(document.getElementById("cw-blocks").textContent),
     clues: JSON.parse(document.getElementById("cw-clues").textContent),
-    nytRules: {{ crossword.requires_rotational_symmetry|yesno:"true,false" }},
+    get nytRules() { return document.getElementById("cw-rotational-symmetry").checked; },
     saveUrl: "{% url 'crossword_save' crossword.pk %}",
     fetchAnswersUrl: "{% url 'fetch_answers' crossword.pk %}",
     fetchCluesUrl: "{% url 'fetch_clues' crossword.pk %}",
@@ -140,5 +144,5 @@
     </div>
   </div>
 </div>
-<script src="{% static 'crossword/generator.js' %}?v=32"></script>
+<script src="{% static 'crossword/generator.js' %}?v=33"></script>
 {% endblock %}

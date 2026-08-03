@@ -4,9 +4,11 @@ from .models import Crossword
 
 
 class CrosswordCreateForm(forms.ModelForm):
-    """The "new crossword" form: grid size (a pseudo-field, not stored
-    directly on the model) plus the one real model field, symmetry. Saving
-    expands the chosen size into num_rows/num_cols and a blank grid."""
+    """The "new crossword" form: just the grid size (a pseudo-field, not
+    stored directly on the model). Saving expands the chosen size into
+    num_rows/num_cols and a blank grid. requires_rotational_symmetry is left
+    at its model default and is only ever changed later, on the edit
+    screen."""
 
     SIZE_CHOICES = [
         (5, "5 x 5"),
@@ -20,7 +22,7 @@ class CrosswordCreateForm(forms.ModelForm):
 
     class Meta:
         model = Crossword
-        fields = ["requires_rotational_symmetry"]
+        fields = []
 
     def save(self, commit=True):
         # `size` isn't a model field -- it's fanned out here into the

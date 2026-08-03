@@ -253,10 +253,7 @@ class CrosswordCreateViewTest(TestCase):
         # POSTing the "add crossword" form should create a Crossword in the database
         # with the right dimensions, initialise cells to the correct number of empty
         # strings, and redirect to the edit screen for that crossword.
-        response = self.client.post(
-            reverse("crossword_add"),
-            {"size": 15, "requires_rotational_symmetry": True},
-        )
+        response = self.client.post(reverse("crossword_add"), {"size": 15})
         cw = Crossword.objects.get()
         self.assertRedirects(response, reverse("crossword_edit", args=[cw.pk]))
         self.assertEqual(cw.num_rows, 15)
@@ -314,6 +311,23 @@ class CrosswordSaveViewTest(TestCase):
             }
         )
         self.assertFalse(Entry.objects.filter(crossword=self.cw).exists())
+
+    def test_saves_requires_rotational_symmetry(self):
+        # The symmetry toggle lives on the edit screen (not the create form),
+        # so crossword_save is where it must actually get persisted.
+        self.assertTrue(self.cw.requires_rotational_symmetry)
+        self._save(
+            {
+                "cells": ["C", "A", "T"],
+                "blocked_out_squares": [],
+                "name": "",
+                "description": "",
+                "clues": {},
+                "requires_rotational_symmetry": False,
+            }
+        )
+        self.cw.refresh_from_db()
+        self.assertFalse(self.cw.requires_rotational_symmetry)
 
     def test_new_word_gets_source_crossword(self):
         # A word that doesn't exist yet should have source_crossword set to the
@@ -609,10 +623,7 @@ class PermissionTest(TestCase):
     def test_add_crossword_requires_permission(self):
         # A user without the permission should not be able to create a crossword.
         # PermissionRequiredMixin returns 403 for authenticated users lacking the permission.
-        response = self.client.post(
-            reverse("crossword_add"),
-            {"size": 15, "requires_rotational_symmetry": True},
-        )
+        response = self.client.post(reverse("crossword_add"), {"size": 15})
         self.assertEqual(response.status_code, 403)
         self.assertFalse(Crossword.objects.exists())
 
