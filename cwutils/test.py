@@ -241,7 +241,7 @@ class TestMatching(unittest.TestCase):
         # the real dictionary so it's caught if it raises. The
         # exactly-verified behaviour lives in TestWordsFreedom below.
         self.grid1.slots[1].words_freedom()
-
+        print(self.grid1.slots[1].words_freedom())
 
 # Claude added these tests
 class TestWordsFreedom(unittest.TestCase):
@@ -265,26 +265,30 @@ class TestWordsFreedom(unittest.TestCase):
         self.assertEqual(len(across.intersections()), 2)
         self.assertEqual(
             across.words_freedom(),
-            [("CAT", [2]), ("MAT", [2]), ("BAG", [1]), ("RAN", [0])],
+            [("CAT", 2, 2), ("MAT", 2, 2), ("BAG", 1, 1), ("RAN", 0, 0)],
         )
 
     def test_fully_resolved_slot_scores_zero_without_error(self):
         # Every cell of the target slot already holds a letter, so no
         # crossing is unresolved. words_freedom() must not raise (min() of
-        # an empty list) and should report freedom 0 for the word.
+        # an empty list) and should report worst/mean as None -- there's no
+        # crossing to judge the word against, so 0 would be misleading.
         grid = Grid("\nAT\n--\n", ["AT"])
         across = grid.slot_for_cell("A", 0)
 
-        self.assertEqual(across.words_freedom(), [("AT", [])])
+        self.assertEqual(across.words_freedom(), [("AT", None, None)])
 
     def test_slot_with_no_crossings_at_all_scores_zero_without_error(self):
         # A single-row grid has no real down slots at all (every column
         # run is length 1, so none qualify as a slot). words_freedom()
-        # must still return a result per candidate instead of raising.
+        # must still return a result per candidate instead of raising, with
+        # worst/mean of None rather than a misleading 0.
         grid = Grid("\n---\n", ["CAT", "DOG"])
         across = grid.slot_for_cell("A", 0)
 
-        self.assertEqual(across.words_freedom(), [("CAT", []), ("DOG", [])])
+        self.assertEqual(
+            across.words_freedom(), [("CAT", None, None), ("DOG", None, None)]
+        )
 
     def test_no_matching_words_returns_empty(self):
         # When words() itself finds nothing, words_freedom() should return
@@ -307,7 +311,7 @@ class TestWordsFreedom(unittest.TestCase):
 
         self.assertEqual(
             across.words_freedom(),
-            [("ABD", [1, 1, 5]), ("ABC", [1, 1, 2])],
+            [("ABD", 1, 7 / 3), ("ABC", 1, 4 / 3)],
         )
 
 

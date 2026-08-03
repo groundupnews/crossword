@@ -325,9 +325,10 @@ def fetch_answers(request, pk):
     `direction` ("A"/"D"), and `page` (1-indexed, 20 per page).
 
     Alongside `answers`, returns a same-length `metrics` array (each entry
-    `{"worst": int, "mean": float}`, or `null` per word when the plain
-    fallback match was used) and a `ranked_by_freedom` flag, so the client
-    can show the freedom scores behind the ranking.
+    `{"worst": int, "mean": float}`, or `{"worst": null, "mean": null}` per
+    word when the slot has no active crossing to rank by) and a
+    `ranked_by_freedom` flag, so the client can show the freedom scores
+    behind the ranking.
     """
     crossword = get_object_or_404(Crossword, pk=pk)
     payload = json.loads(request.body)
@@ -353,23 +354,10 @@ def fetch_answers(request, pk):
     metrics = []
     ranked_by_freedom = False
     if slot:
-        try:
-            ranked = slot.words_freedom()
-            ranked_by_freedom = True
-            texts = [word for word, _ in ranked]
-            metrics = [
-                {
-                    "worst": min(scores) if scores else None,
-                    "mean": (sum(scores) / len(scores)) if scores else None,
-                }
-                for _, scores in ranked
-            ]
-        except ValueError:
-            # No unresolved crossing to score by (no intersecting slots, or
-            # every crossing cell is already filled) — fall back to a plain
-            # match, since cwutils can't rank freedom in that case.
-            texts = sorted(slot.words())
-            metrics = [None] * len(texts)
+        ranked = slot.words_freedom()
+        ranked_by_freedom = True
+        texts = [word for word, _, _ in ranked]
+        metrics = [{"worst": worst, "mean": mean} for _, worst, mean in ranked]
 
     total_pages = -(-len(texts) // FETCH_ANSWERS_PAGE_SIZE)  # ceil div
     start = (page - 1) * FETCH_ANSWERS_PAGE_SIZE

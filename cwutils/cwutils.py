@@ -6,6 +6,40 @@ It fetches the best words (answers) for a given slot (using the words_freedom me
 from fnmatch import fnmatch
 
 
+class WordIndex:
+    """Precomputed lookups over a word list: words bucketed by length, and
+    a glob->matches cache. Built once per distinct word list and shared by
+    every Grid copied from it, so pattern-matching work done for one search
+    branch is reused by every sibling branch instead of being redone.
+
+    Tracks the word list's length so words appended to it after
+    construction (as Grid.words is, e.g. in tests) still get indexed and
+    considered -- mirrors the old behaviour of scanning grid.words live on
+    every call."""
+
+    def __init__(self, words):
+        self._words = words
+        self._indexed_count = 0
+        self.by_length = {}
+        self._glob_cache = {}
+        self._sync()
+
+    def _sync(self):
+        if self._indexed_count == len(self._words):
+            return
+        for w in self._words[self._indexed_count :]:
+            self.by_length.setdefault(len(w), []).append(w)
+        self._indexed_count = len(self._words)
+        self._glob_cache = {}  # newly indexed words can change past results
+
+    def matches(self, glob):
+        self._sync()
+        if glob not in self._glob_cache:
+            candidates = self.by_length.get(len(glob), [])
+            self._glob_cache[glob] = [w for w in candidates if fnmatch(w, glob)]
+        return self._glob_cache[glob]
+
+
 class Slot:
     """One across or down run in a Grid: its position, length, the flat
     cell indices it covers, and matching helpers against the grid's word
@@ -125,10 +159,7 @@ class Slot:
         """Every word in the grid's word list matching this slot's current
         glob pattern (i.e. the right length and consistent with any
         letters already filled in)."""
-        glob = self.glob()
-        words = self.grid.words
-        result = [w for w in words if fnmatch(w, glob)]
-        return result
+        return self.grid.word_index.matches(self.glob())
 
     def words_freedom(self):
         """Ranks this slot's candidate words (from words()) by how much
@@ -139,20 +170,27 @@ class Slot:
         dictionary words of the right length could still fill that
         crossing if the candidate were placed -- already-filled crossings,
         and cells with no real crossing slot, are skipped entirely, so a
-        candidate can end up with an empty score list. Results are
-        cached per crossing pattern (glob_dict) since many candidates
-        produce the same crossing pattern.
+        candidate can end up with an empty score list. Results are cached
+        per crossing pattern in the grid's WordIndex, shared across the
+        whole search, since many candidates -- and many sibling search
+        branches -- produce the same crossing pattern.
 
         Candidates are sorted by their worst (minimum) crossing score
         first, so a word that's fine everywhere except one badly
         constrained crossing loses to one that's evenly okay; the mean of
         all crossing scores breaks ties between candidates with the same
-        worst score. A candidate with no scores at all (fully resolved
-        slot, or no crossings exist) sorts by 0 for both, which just
-        preserves words()' original order among such candidates.
+        worst score.
 
-        Returns a list of (word, scores) tuples. See fetch_algorirthm.md
-        for the original pseudocode this replaced.
+        Returns a list of (word, worst, mean) tuples -- the per-crossing
+        scores themselves are only ever used to derive these two numbers,
+        so there's no reason to hand the whole list back to callers. When
+        the slot has no active crossings at all (every cell either already
+        filled or structurally uncrossed, e.g. a run whose perpendicular
+        run is length 1), every candidate is equally un-rankable: worst and
+        mean are both None rather than a misleading 0 -- 0 would read as
+        "this word is unusable" when really there's nothing to judge it
+        against, and every candidate is left in words()' original order.
+        See fetch_algorirthm.md for the original pseudocode this replaced.
         """
 
         def min_no_error(lst):
@@ -161,40 +199,66 @@ class Slot:
             except ValueError:
                 return 0
 
-        glob_dict = {}
-        self_words = self.words()
-        self_glob = self.glob()
-        intersections = self.intersections()
-        result = {}
-        for word in self_words:
-            result[word] = []
-        for word in self_words:
-            for intersection in intersections:
-                glob_list = list(intersection.glob())
-                (i, j) = self.intersecting_cell_index(intersection)
-                if self_glob[j] != "?":
-                    continue
-                glob_list[i] = word[j]
-                glob = "".join(glob_list)
-                if glob not in glob_dict:
-                    words = [w for w in self.grid.words if len(w) == len(glob)]
-                    matching_words = [w for w in words if fnmatch(w, glob)]
-                    glob_dict[glob] = len(matching_words)
-                result[word].append(glob_dict[glob])
-
         def mean(lst):
             return sum(lst) / len(lst) if lst else 0
 
-        arr = list(result.items())
-        arr = sorted(
-            arr, key=lambda tpl: (min_no_error(tpl[1]), mean(tpl[1])), reverse=True
-        )
+        word_index = self.grid.word_index
+        self_words = self.words()
+        self_glob = self.glob()
+
+        # (intersection, i, j) only depends on slot geometry and the
+        # current grid state, not on the candidate word, so it's computed
+        # once here rather than once per candidate per intersection.
+        active_crossings = []
+        for intersection in self.intersections():
+            (i, j) = self.intersecting_cell_index(intersection)
+            if self_glob[j] != "?":
+                continue
+            active_crossings.append((intersection, i, j))
+
+        result = {}
+        for word in self_words:
+            scores = []
+            for intersection, i, j in active_crossings:
+                glob_list = list(intersection.glob())
+                glob_list[i] = word[j]
+                glob = "".join(glob_list)
+                scores.append(len(word_index.matches(glob)))
+            result[word] = scores
+
+        arr = [(word, min_no_error(scores), mean(scores)) for word, scores in result.items()]
+        arr = sorted(arr, key=lambda tpl: (tpl[1], tpl[2]), reverse=True)
+        if not active_crossings:
+            arr = [(word, None, None) for word, _, _ in arr]
         return arr
 
     def fill(self, word):
         assert len(word) == self._len
         for i in range(self._len):
             self.grid.cells[self.cells[i]] = word[i]
+
+    def get(self):
+        word = [" "] * len(self)
+        for i in range(self._len):
+            word[i] = self.grid.cells[self.cells[i]]
+        return "".join(word)
+
+    def clone_for(self, grid):
+        """A copy of this slot bound to `grid` instead of its original
+        grid. Geometry (dir/id/row/col/start/length/cells) never changes
+        between a Grid and its copies, so it's carried over as-is rather
+        than recomputed -- only the grid reference actually differs."""
+        clone = Slot.__new__(Slot)
+        clone.grid = grid
+        clone.dir = self.dir
+        clone.id = self.id
+        clone.row = self.row
+        clone.col = self.col
+        clone.start = self.start
+        clone._len = self._len
+        clone.cells = self.cells
+        clone._intersections = []
+        return clone
 
 
 class Grid:
@@ -211,6 +275,7 @@ class Grid:
         words() and words_freedom() will match candidates against."""
         if words:
             self.words = words
+        self.word_index = WordIndex(self.words)
         self.cells = []
         rows = 0
         cols = 0
@@ -229,6 +294,7 @@ class Grid:
         self.slots = sorted(
             self.calc_slots(), key=lambda slot: f"{slot.dir}{slot.id:03}"
         )
+        self._build_cell_slot_index()
 
     def _I(self, r: int, c: int):
         """Flat cell index for (row, col), asserting both are in bounds."""
@@ -292,17 +358,40 @@ class Grid:
                     slot_num += 1
         return [slot for slot in slots if len(slot) > 1]
 
+    def _build_cell_slot_index(self):
+        """Maps (dir, cell) -> the slot covering it, so slot_for_cell() is
+        an O(1) lookup instead of scanning every slot's cell list. Rebuilt
+        once whenever slots are (re)computed -- geometry is invariant
+        across copies, but each copy's slots are distinct objects bound to
+        that copy's grid, so the index can't simply be shared."""
+        self._cell_slot = {}
+        for slot in self.slots:
+            for cell in slot.cells:
+                self._cell_slot[(slot.dir, cell)] = slot
+
     def slot_for_cell(self, dir, cell):
         """The slot running in `dir` that covers flat cell index `cell`,
         or None if there isn't one (e.g. `cell` is blocked, or its run in
         that direction is only one cell long and so isn't a real slot)."""
-        for slot in self.slots:
-            if slot.dir == dir and cell in slot.cells:
-                return slot
-        return None
+        return self._cell_slot.get((dir, cell))
 
     def copy(self):
-        return Grid(str(self), self.words)
+        """A copy with its own independent `cells`, safe to mutate without
+        affecting the original -- used constantly by auto_complete's
+        search to branch without disturbing the caller's grid. Block
+        layout never changes between a grid and its copies, so slot
+        geometry is cloned rather than recomputed from a re-parsed string,
+        and the shared word_index (built once, off the word list, which
+        also never changes) is reused as-is."""
+        new_grid = Grid.__new__(Grid)
+        new_grid.words = self.words
+        new_grid.word_index = self.word_index
+        new_grid.rows = self.rows
+        new_grid.cols = self.cols
+        new_grid.cells = list(self.cells)
+        new_grid.slots = [slot.clone_for(new_grid) for slot in self.slots]
+        new_grid._build_cell_slot_index()
+        return new_grid
 
     def complete(self):
         for s in self.slots:
@@ -310,25 +399,44 @@ class Grid:
                 return False
         return True
 
+import time
+MAX_ATTEMPTS = 500
 
-MAX_ATTEMPTS = 100
+# This is still work in progress
+def auto_complete(grid):
 
+    attempt = 0
 
-def auto_complete(grid, attempt=0):
-    g = grid.copy()
-    if attempt >= MAX_ATTEMPTS:
-        print("Returning g because attempt overflow", attempt)
+    def auto_complete_(grid):
+        nonlocal attempt
+        attempt +=1 
+        if attempt >= MAX_ATTEMPTS:
+            print("Returning grid after max attempts", attempt)
+            return grid
+        g = grid.copy()
+        slots = [s for s in g.slots if not s.complete()]
+        answers = [s.get() for s in g.slots if s.complete()]
+        for s in slots:
+            if s.complete():
+                continue
+            blank = s.get()
+            words = [w[0] for w in s.words_freedom() if (w[1] is None or w[1] > 0) and w[0] not in answers][:20]
+            for word in words:
+                s.fill(word)
+                h = auto_complete_(g)
+                if attempt >= MAX_ATTEMPTS:
+                    print("Returning h after max attempts", attempt)
+                    return h
+                if h.complete():
+                    print("Returning h", attempt)
+                    return h
+            s.fill(blank)
+        print("Returning g", attempt)
         return g
-    slots = [s for s in g.slots if not s.complete()]
-    for s in slots:
-        if s.complete():
-            continue
-        words = [w[0] for w in s.words_freedom() if w[1][0] > 0]
-        for word in words:
-            s.fill(word)
-            h = auto_complete(g, attempt + 1)
-            if h.complete():
-                print("Returning h", attempt)
-                return h
-    print("Returning g", attempt)
-    return g
+
+    start_time = time.perf_counter()
+    result = auto_complete_(grid)
+    end_time = time.perf_counter()
+    execution_time = end_time - start_time
+    print(f"Execution time: {execution_time:.6f} seconds")
+    return result
