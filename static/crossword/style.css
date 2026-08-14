@@ -60,6 +60,20 @@ h2 {
   margin: 0 0 0.5rem;
 }
 
+.cw-description {
+  color: var(--muted);
+  max-width: 32rem;
+  margin-bottom: 1rem;
+}
+
+.cw-description p {
+  margin: 0 0 0.5rem;
+}
+
+.cw-description p:last-child {
+  margin-bottom: 0;
+}
+
 ul {
   list-style: none;
   padding: 0;

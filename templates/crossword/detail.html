@@ -5,6 +5,7 @@
 
 {% block content %}
 <h1>{{ crossword.name|default:"Untitled crossword" }}</h1>
+{% if crossword.description %}<div class="cw-description">{{ crossword.description|linebreaks }}</div>{% endif %}
 
 <audio id="click-sound" src="{% static 'crossword/click_001.ogg' %}" preload="auto"></audio>
 <audio id="tada-sound" src="{% static 'crossword/tada-fanfare-g-sound.flac' %}" preload="auto"></audio>
