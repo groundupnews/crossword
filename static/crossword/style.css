@@ -157,6 +157,17 @@ input[type="text"]:disabled {
   color: var(--faint);
 }
 
+.helptext {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--faint);
+}
+
+.profile-form p {
+  margin: 0 0 1.25rem;
+}
+
 .status-published {
   color: #0066cc;
   font-size: 0.85rem;
@@ -1006,4 +1017,12 @@ kbd {
   font-weight: 600;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
+}
+
+/* Shown while waiting on a slow synchronous request (e.g. sending the login
+   email), since the browser doesn't reliably show its own busy cursor for a
+   plain form POST. */
+body.waiting,
+body.waiting * {
+  cursor: wait !important;
 }
