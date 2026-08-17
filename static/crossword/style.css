@@ -574,6 +574,10 @@ button:focus-visible {
   background: var(--accent-soft);
 }
 
+.admin-link {
+  color: var(--danger);
+}
+
 .warning {
   color: var(--danger);
   background: #fdecef;
